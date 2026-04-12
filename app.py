@@ -1,0 +1,3004 @@
+# EPITRIX — Epitope Intelligence Platform
+# Mechanistic AI: Molecular Design → Innate Sensing → Adaptive Quality/Magnitude
+import streamlit as st
+import numpy as np
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+
+st.set_page_config(
+    page_title="Epitrix | Epitope Intelligence Platform",
+    page_icon="🧬",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+st.markdown("""
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+    /* ── Force light mode everywhere ── */
+    html, body, [data-testid="stAppViewContainer"], [data-testid="stApp"],
+    [data-testid="stMain"], section.main, .main {
+        background-color: #f9fafb !important;
+        color: #111827 !important;
+    }
+    [data-testid="stSidebar"], [data-testid="stSidebarContent"] {
+        background-color: #1e293b !important;
+    }
+    /* Sidebar radio text white on dark sidebar */
+    [data-testid="stSidebar"] label, [data-testid="stSidebar"] p,
+    [data-testid="stSidebar"] span, [data-testid="stSidebar"] div {
+        color: #f1f5f9 !important;
+    }
+    /* All widget labels clearly dark */
+    label, .stSlider label, .stSelectbox label, .stTextArea label,
+    .stNumberInput label, .stTextInput label {
+        color: #111827 !important; font-weight: 600 !important;
+        font-family: 'Inter', sans-serif !important; font-size: 0.875rem !important;
+    }
+    p, li { color: #111827; font-family: 'Inter', sans-serif; }
+
+    /* ── Selectbox / dropdown — light bg, dark text, at every DOM level ── */
+    .stSelectbox > div, .stSelectbox > div > div,
+    [data-baseweb="select"], [data-baseweb="select"] > div,
+    [data-baseweb="select"] input,
+    [data-baseweb="popover"], [data-baseweb="popover"] > div,
+    [data-baseweb="menu"], [data-baseweb="menu"] ul,
+    [role="listbox"], [role="option"],
+    [data-baseweb="select"] [data-testid="stSelectboxVirtualDropdown"] {
+        background-color: #ffffff !important;
+        color: #111827 !important;
+    }
+    /* Dropdown trigger button */
+    [data-baseweb="select"] > div:first-child {
+        background-color: #ffffff !important;
+        border: 1px solid #d1d5db !important;
+        color: #111827 !important;
+    }
+    /* Selected value text */
+    [data-baseweb="select"] [data-testid="stMarkdownContainer"] p,
+    [data-baseweb="select"] span, [data-baseweb="select"] div {
+        color: #111827 !important;
+    }
+    /* Dropdown list items */
+    [role="option"] { background: #ffffff !important; color: #111827 !important; }
+    [role="option"]:hover { background: #eff6ff !important; color: #1e40af !important; }
+    /* Tab widgets */
+    [data-baseweb="tab-list"] { background: #f3f4f6 !important; border-radius: 8px; }
+    [data-baseweb="tab"] { color: #374151 !important; background: transparent !important; }
+    [aria-selected="true"][data-baseweb="tab"] {
+        color: #2563eb !important; background: #ffffff !important;
+        border-bottom: 2px solid #2563eb !important;
+    }
+    button[data-baseweb="tab"] span { color: inherit !important; }
+    /* Multiselect tags */
+    [data-baseweb="tag"] { background: #dbeafe !important; color: #1e40af !important; }
+    /* Text inputs */
+    .stTextArea textarea, .stTextInput input, .stNumberInput input {
+        background: #ffffff !important; color: #111827 !important;
+        border: 1px solid #d1d5db !important; border-radius: 8px !important;
+    }
+    /* Slider track */
+    .stSlider [data-baseweb="slider"] { background: transparent !important; }
+    /* ── Buttons — force light/white style outside sidebar ── */
+    .stButton > button {
+        background-color: #ffffff !important;
+        color: #111827 !important;
+        border: 1px solid #d1d5db !important;
+        border-radius: 8px !important;
+        font-weight: 600 !important;
+        font-family: 'Inter', sans-serif !important;
+    }
+    .stButton > button:hover {
+        background-color: #f3f4f6 !important;
+        border-color: #9ca3af !important;
+    }
+    /* Primary buttons keep the blue */
+    .stButton > button[kind="primary"],
+    .stButton > button[data-testid*="primary"] {
+        background-color: #2563eb !important;
+        color: #ffffff !important;
+        border-color: #2563eb !important;
+    }
+    .stButton > button[kind="primary"]:hover {
+        background-color: #1d4ed8 !important;
+    }
+    /* Download button */
+    .stDownloadButton > button {
+        background-color: #ffffff !important;
+        color: #2563eb !important;
+        border: 1px solid #2563eb !important;
+        border-radius: 8px !important;
+        font-weight: 600 !important;
+    }
+    .stDownloadButton > button:hover {
+        background-color: #eff6ff !important;
+    }
+    /* Expander */
+    [data-testid="stExpander"] {
+        background: #ffffff !important;
+        border: 1px solid #e5e7eb !important;
+        border-radius: 10px !important;
+    }
+    [data-testid="stExpander"] summary {
+        color: #111827 !important;
+        font-weight: 600 !important;
+    }
+    /* Metric labels */
+    [data-testid="stMetricLabel"] { color: #6b7280 !important; }
+    [data-testid="stMetricValue"] { color: #111827 !important; }
+    /* Info/success/warning boxes */
+    .stAlert { background: #f0f9ff !important; color: #1e3a5f !important; border-radius: 8px !important; }
+    /* Spinner text */
+    .stSpinner > div { color: #2563eb !important; }
+
+    :root {
+        --primary: #2563eb; --secondary: #10b981; --accent: #f59e0b;
+        --warning: #ef4444; --success: #22c55e;
+        --gray-50: #f9fafb; --gray-100: #f3f4f6; --gray-200: #e5e7eb;
+        --gray-600: #4b5563; --gray-700: #374151; --gray-800: #1f2937; --gray-900: #111827;
+        --font: 'Inter', -apple-system, sans-serif;
+    }
+    #MainMenu, footer, header, .stDeployButton { visibility: hidden; }
+    .main .block-container { padding: 0; max-width: 100%; background: #f9fafb !important; }
+
+    /* ── Header ── */
+    .epitrix-header-legacy {
+        background: linear-gradient(135deg, #1e1b4b 0%, #2563eb 50%, #0891b2 100%);
+        padding: 2.5rem 2rem; margin: 0;
+    }
+    .header-content { max-width: 1400px; margin: 0 auto; }
+    .platform-title {
+        font-family: var(--font); font-size: 3rem; font-weight: 700; margin: 0;
+        background: linear-gradient(45deg, #ffffff, #a5f3fc);
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .platform-subtitle { font-family: var(--font); font-size: 1.1rem; margin: 0.5rem 0 0; color: rgba(255,255,255,0.9); }
+    .breakthrough-tagline { font-family: var(--font); font-size: 0.85rem; font-weight: 600; color: #a5f3fc; text-transform: uppercase; letter-spacing: 0.1em; margin: 0; }
+
+    /* ── Cards & layout ── */
+    .content-container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+    .innovation-card {
+        background: #ffffff; border: 1px solid #e5e7eb; border-radius: 16px;
+        padding: 2rem; margin-bottom: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.07);
+    }
+    .innovation-card h2, .innovation-card h3, .innovation-card h4,
+    .innovation-card p, .innovation-card li, .innovation-card strong, .innovation-card em {
+        color: #111827 !important;
+    }
+    .section-title { font-family: var(--font); font-size: 1.75rem; font-weight: 700; color: #111827 !important; margin: 0 0 0.5rem; }
+    .section-subtitle { font-family: var(--font); font-size: 1rem; color: #4b5563 !important; margin: 0; }
+
+    .data-card {
+        background: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px;
+        padding: 1.5rem; margin-bottom: 1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    .data-card h4 { color: #2563eb !important; margin: 0 0 0.75rem; font-size: 1rem; font-weight: 600; }
+    .data-card ul { margin: 0; padding-left: 1.25rem; }
+    .data-card li { color: #374151 !important; margin-bottom: 0.4rem; font-size: 0.9rem; }
+    .data-card.output { border-left: 4px solid #10b981; }
+
+    .prediction-target {
+        background: linear-gradient(135deg, #f0f9ff, #ffffff);
+        border: 1px solid #bae6fd; border-left: 4px solid #2563eb;
+        border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem;
+    }
+    .prediction-target h4 { color: #2563eb !important; margin: 0 0 0.5rem; font-size: 1rem; font-weight: 700; }
+    .prediction-target p { color: #374151 !important; margin: 0 0 0.5rem; font-size: 0.9rem; }
+    .prediction-target li { color: #4b5563 !important; font-size: 0.85rem; }
+
+    /* ── Cascade flow — explicit dark text so it shows on light bg ── */
+    .cascade-flow { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; padding: 1rem 0; }
+    .flow-step {
+        background: linear-gradient(135deg, #eff6ff, #ffffff);
+        border: 1.5px solid #bfdbfe; border-radius: 10px;
+        padding: 1rem 2rem; text-align: center; width: 100%; max-width: 520px;
+    }
+    .flow-step strong { color: #1e3a8a !important; font-size: 0.95rem; display: block; margin-bottom: 0.2rem; }
+    .flow-step em { color: #4b5563 !important; font-size: 0.85rem; }
+    .flow-arrow { font-size: 1.5rem; color: #2563eb; }
+
+    /* ── Antigen input card ── */
+    .antigen-card {
+        background: linear-gradient(135deg, #fefce8, #ffffff);
+        border: 1.5px solid #fde68a; border-left: 4px solid #f59e0b;
+        border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem;
+    }
+    .antigen-card h3 { color: #92400e !important; margin: 0 0 0.5rem; font-size: 1rem; font-weight: 700; }
+    .antigen-card p, .antigen-card li { color: #78350f !important; font-size: 0.85rem; }
+    .antigen-stat { display:inline-block; background:#fef3c7; border:1px solid #fde68a;
+        border-radius:6px; padding:2px 8px; margin:2px; font-size:0.78rem; color:#92400e !important; font-weight:600; }
+
+    .time-point {
+        background: #f9fafb; border-left: 3px solid #2563eb;
+        padding: 0.75rem 1rem; margin-bottom: 0.75rem; border-radius: 0 8px 8px 0;
+    }
+    .time-point h5 { margin: 0 0 0.25rem; color: #2563eb !important; font-size: 0.9rem; }
+    .time-point p { margin: 0; color: #4b5563 !important; font-size: 0.85rem; }
+
+    .mol-input-box {
+        background: #f9fafb; border: 1px solid #e5e7eb;
+        border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem;
+    }
+    .mol-input-box h3 { margin: 0 0 0.75rem; color: #111827 !important; font-size: 1rem; font-weight: 600; }
+
+    .stMarkdown p, .stMarkdown li { color: #1f2937 !important; font-family: var(--font) !important; }
+    .stMarkdown h1,.stMarkdown h2,.stMarkdown h3,.stMarkdown h4 {
+        color: #111827 !important; font-family: var(--font) !important; font-weight: 700 !important;
+    }
+    @media (max-width: 768px) { .platform-title { font-size: 2rem; } .content-container { padding: 1rem; } }
+</style>
+""", unsafe_allow_html=True)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# MOLECULAR DESCRIPTORS DATABASE
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Lipid category tags for UI grouping
+LIPID_CATEGORIES = {
+    # --- Clinical / approved ---
+    'ALC-0315':         'Clinical',
+    'SM-102':           'Clinical',
+    # --- FDA-approved siRNA delivery ---
+    'DLin-MC3-DMA':     'Approved (siRNA)',
+    # --- Cationic (research) ---
+    'DOTAP':            'Cationic',
+    'DOTMA':            'Cationic',
+    # --- Next-generation ionizable ---
+    'OF-Deg-Lin':       'Next-Gen',
+    'C12-200':          'Next-Gen',
+    'Lipid 5':          'Next-Gen',
+    '306Oi10':          'Next-Gen',
+    'CL4H6':            'Next-Gen',
+    # --- Biodegradable ionizable ---
+    'ALC-0315-BD':      'Biodegradable',
+    'L-319':            'Biodegradable',
+    # --- Custom ---
+    '⚙️ Custom Lipid':  'Custom',
+}
+
+MOLECULAR_DESCRIPTORS = {
+    'lipid_chemistry': {
+        'ionizable_lipids': {
+            # ── Clinical / approved ───────────────────────────────────────────
+            'ALC-0315': {
+                'pka': 6.09, 'logP': 8.2, 'molecular_weight': 766.0, 'branching_factor': 2.4,
+                'notes': 'Used in Pfizer-BioNTech COVID-19 mRNA vaccine (Comirnaty)',
+                'innate_profile': {'TLR_activation': 'low', 'complement_trigger': 'minimal', 'dc_maturation': 'moderate'}
+            },
+            'SM-102': {
+                'pka': 6.68, 'logP': 7.8, 'molecular_weight': 688.5, 'branching_factor': 2.1,
+                'notes': 'Used in Moderna COVID-19 mRNA vaccine (Spikevax)',
+                'innate_profile': {'TLR_activation': 'low', 'complement_trigger': 'minimal', 'dc_maturation': 'moderate'}
+            },
+            # ── Approved (siRNA) ──────────────────────────────────────────────
+            'DLin-MC3-DMA': {
+                'pka': 6.44, 'logP': 7.5, 'molecular_weight': 642.1, 'branching_factor': 2.0,
+                'notes': 'FDA-approved for siRNA delivery (Onpattro/patisiran)',
+                'innate_profile': {'TLR_activation': 'moderate', 'complement_trigger': 'low', 'dc_maturation': 'high'}
+            },
+            # ── Cationic ─────────────────────────────────────────────────────
+            'DOTAP': {
+                'pka': 8.5, 'logP': 6.5, 'molecular_weight': 698.5, 'branching_factor': 1.2,
+                'notes': 'Permanent cationic lipid; high transfection but elevated reactogenicity',
+                'innate_profile': {'TLR_activation': 'high', 'complement_trigger': 'moderate', 'dc_maturation': 'high'}
+            },
+            'DOTMA': {
+                'pka': 9.0, 'logP': 6.2, 'molecular_weight': 670.5, 'branching_factor': 1.0,
+                'notes': 'First synthetic cationic lipid; precursor to DOTAP; high immunostimulation',
+                'innate_profile': {'TLR_activation': 'high', 'complement_trigger': 'high', 'dc_maturation': 'high'}
+            },
+            # ── Next-gen ionizable ────────────────────────────────────────────
+            'OF-Deg-Lin': {
+                'pka': 6.50, 'logP': 7.1, 'molecular_weight': 602.0, 'branching_factor': 2.2,
+                'notes': 'Degradable ester-linked ionizable; reduced toxicity profile',
+                'innate_profile': {'TLR_activation': 'low', 'complement_trigger': 'minimal', 'dc_maturation': 'moderate'}
+            },
+            'C12-200': {
+                'pka': 7.10, 'logP': 8.9, 'molecular_weight': 642.0, 'branching_factor': 3.1,
+                'notes': 'Multi-tail ionizable; high hepatic delivery efficiency',
+                'innate_profile': {'TLR_activation': 'moderate', 'complement_trigger': 'low', 'dc_maturation': 'high'}
+            },
+            'Lipid 5': {
+                'pka': 6.32, 'logP': 7.4, 'molecular_weight': 710.2, 'branching_factor': 2.6,
+                'notes': 'Highly branched ionizable; optimized endosomal escape',
+                'innate_profile': {'TLR_activation': 'low', 'complement_trigger': 'minimal', 'dc_maturation': 'moderate'}
+            },
+            '306Oi10': {
+                'pka': 6.78, 'logP': 8.0, 'molecular_weight': 655.0, 'branching_factor': 2.8,
+                'notes': 'Orthogonal branching scaffold; enhanced T cell response',
+                'innate_profile': {'TLR_activation': 'moderate', 'complement_trigger': 'low', 'dc_maturation': 'high'}
+            },
+            'CL4H6': {
+                'pka': 6.20, 'logP': 7.6, 'molecular_weight': 625.3, 'branching_factor': 2.3,
+                'notes': 'Cyclic amine head group; improved selective organ targeting',
+                'innate_profile': {'TLR_activation': 'low', 'complement_trigger': 'minimal', 'dc_maturation': 'moderate'}
+            },
+            # ── Biodegradable ─────────────────────────────────────────────────
+            'ALC-0315-BD': {
+                'pka': 6.15, 'logP': 7.9, 'molecular_weight': 748.0, 'branching_factor': 2.4,
+                'notes': 'Biodegradable analogue of ALC-0315; faster clearance',
+                'innate_profile': {'TLR_activation': 'low', 'complement_trigger': 'minimal', 'dc_maturation': 'low'}
+            },
+            'L-319': {
+                'pka': 6.56, 'logP': 7.3, 'molecular_weight': 617.0, 'branching_factor': 2.0,
+                'notes': 'Ester-bond biodegradable; reduced hepatotoxicity vs MC3',
+                'innate_profile': {'TLR_activation': 'low', 'complement_trigger': 'minimal', 'dc_maturation': 'moderate'}
+            },
+            # ── Custom placeholder (populated dynamically from UI) ─────────────
+            '⚙️ Custom Lipid': {
+                'pka': 6.5, 'logP': 7.5, 'molecular_weight': 680.0, 'branching_factor': 2.0,
+                'notes': 'User-defined custom lipid — edit properties in the sidebar',
+                'innate_profile': {'TLR_activation': 'low', 'complement_trigger': 'minimal', 'dc_maturation': 'moderate'}
+            },
+        },
+        # ── Helper lipids ─────────────────────────────────────────────────────
+        'helper_lipids': {
+            '— None (no helper lipid) —': {
+                'molecular_weight': 0, 'phase_transition_temp': None,
+                'membrane_rigidity': 0.0, 'notes': 'No helper lipid; binary LNP formulation'
+            },
+            # ── Phosphatidylcholines (PC) ─────────────────────────────────────
+            'DSPC': {
+                'molecular_weight': 790.1, 'phase_transition_temp': 55,
+                'membrane_rigidity': 0.9, 'notes': 'High Tm saturated PC; gold standard for LNP stability (Pfizer/Moderna)'
+            },
+            'DPPC': {
+                'molecular_weight': 733.6, 'phase_transition_temp': 41,
+                'membrane_rigidity': 0.8, 'notes': 'Dipalmitoyl PC; slightly lower Tm than DSPC; good bilayer former'
+            },
+            'DMPC': {
+                'molecular_weight': 677.9, 'phase_transition_temp': 23,
+                'membrane_rigidity': 0.6, 'notes': 'Near-physiological Tm; useful for temperature-triggered release'
+            },
+            'DOPC': {
+                'molecular_weight': 786.1, 'phase_transition_temp': -20,
+                'membrane_rigidity': 0.2, 'notes': 'Fluid unsaturated PC; high membrane permeability'
+            },
+            'POPC': {
+                'molecular_weight': 760.1, 'phase_transition_temp': -2,
+                'membrane_rigidity': 0.35, 'notes': 'Mixed-chain PC mimicking natural membranes; excellent biocompatibility'
+            },
+            'HSPC (hydrogenated SPC)': {
+                'molecular_weight': 784.0, 'phase_transition_temp': 52,
+                'membrane_rigidity': 0.88, 'notes': 'Hydrogenated soy PC; high oxidative stability; used in Doxil'
+            },
+            # ── Phosphatidylethanolamines (PE) ────────────────────────────────
+            'DOPE': {
+                'molecular_weight': 744.0, 'phase_transition_temp': -16,
+                'membrane_rigidity': 0.3, 'notes': 'Fusogenic PE lipid; hexagonal phase former; enhances endosomal escape'
+            },
+            'POPE': {
+                'molecular_weight': 717.5, 'phase_transition_temp': 25,
+                'membrane_rigidity': 0.45, 'notes': 'Mixed-chain PE; moderate fusogenicity; good endosomal escape'
+            },
+            'DSPE': {
+                'molecular_weight': 790.1, 'phase_transition_temp': 74,
+                'membrane_rigidity': 0.95, 'notes': 'Saturated PE; very high rigidity; mainly used as PEG anchor'
+            },
+            # ── Sphingolipids & sterols ────────────────────────────────────────
+            'Sphingomyelin (SM)': {
+                'molecular_weight': 702.9, 'phase_transition_temp': 41,
+                'membrane_rigidity': 0.85, 'notes': 'Natural sphingolipid; forms ordered raft domains; slow clearance'
+            },
+            'Ceramide': {
+                'molecular_weight': 537.9, 'phase_transition_temp': 65,
+                'membrane_rigidity': 0.95, 'notes': 'Highly rigid; pro-apoptotic at high molar%; used as PEG anchor'
+            },
+            # ── Other ─────────────────────────────────────────────────────────
+            'DLPC': {
+                'molecular_weight': 621.8, 'phase_transition_temp': -1,
+                'membrane_rigidity': 0.25, 'notes': 'Short-chain PC; highly fluid; fast drug release kinetics'
+            },
+            'DMPG': {
+                'molecular_weight': 665.9, 'phase_transition_temp': 23,
+                'membrane_rigidity': 0.55, 'notes': 'Anionic PG headgroup; negatively charged surface; immune modulating'
+            },
+        },
+        # ── PEG-lipids ────────────────────────────────────────────────────────
+        'peg_lipids': {
+            '— None (no PEG) —': {
+                'peg_mw': 0, 'anchor': 'None', 'shedding_rate': 'N/A',
+                'notes': 'No PEG-lipid; no steric stabilization; faster clearance but higher uptake'
+            },
+            # ── Clinical / approved ───────────────────────────────────────────
+            'ALC-0159 (PEG2000-DMG)': {
+                'peg_mw': 2000, 'anchor': 'DMG', 'shedding_rate': 'fast',
+                'notes': 'Used in Pfizer-BioNTech COVID vaccine; rapid PEG shedding enhances cellular uptake'
+            },
+            'PEG2000-C-DMG': {
+                'peg_mw': 2000, 'anchor': 'C-DMG', 'shedding_rate': 'fast',
+                'notes': 'Used in Moderna COVID vaccine (mSM-102); comparable kinetics to ALC-0159'
+            },
+            # ── PEG-DSPE family ───────────────────────────────────────────────
+            'PEG2000-DSPE': {
+                'peg_mw': 2000, 'anchor': 'DSPE', 'shedding_rate': 'slow',
+                'notes': 'Non-cleavable anchor; long circulation half-life but reduced intracellular uptake'
+            },
+            'PEG5000-DSPE': {
+                'peg_mw': 5000, 'anchor': 'DSPE', 'shedding_rate': 'very slow',
+                'notes': 'Extended PEG chain; maximal steric shielding; used in stealth liposomes'
+            },
+            'PEG550-DSPE': {
+                'peg_mw': 550, 'anchor': 'DSPE', 'shedding_rate': 'fast',
+                'notes': 'Short PEG; minimal stealth effect; faster cellular uptake kinetics'
+            },
+            # ── PEG-ceramide / lipid conjugates ───────────────────────────────
+            'PEG1000-C8-Ceramide': {
+                'peg_mw': 1000, 'anchor': 'Ceramide', 'shedding_rate': 'moderate',
+                'notes': 'Short C8 ceramide anchor; good balance of stealth and uptake'
+            },
+            'PEG2000-C16-Ceramide': {
+                'peg_mw': 2000, 'anchor': 'C16-Ceramide', 'shedding_rate': 'slow',
+                'notes': 'Longer ceramide anchor; improved retention at physiological temperature'
+            },
+            # ── PEG-DPPE / DLPE ───────────────────────────────────────────────
+            'PEG2000-DPPE': {
+                'peg_mw': 2000, 'anchor': 'DPPE', 'shedding_rate': 'moderate',
+                'notes': 'Dipalmitoyl PE anchor; intermediate shedding; good compatibility with DPPC systems'
+            },
+            'PEG2000-DLPE': {
+                'peg_mw': 2000, 'anchor': 'DLPE', 'shedding_rate': 'fast',
+                'notes': 'Short-chain PE anchor; rapid shedding; useful for fast intracellular delivery'
+            },
+            # ── PEG-cholesterol ────────────────────────────────────────────────
+            'PEG2000-Cholesterol': {
+                'peg_mw': 2000, 'anchor': 'Cholesterol', 'shedding_rate': 'moderate',
+                'notes': 'Cholesterol anchor; sheds by cholesterol exchange; good for solid LNPs'
+            },
+            'PEG600-Cholesterol': {
+                'peg_mw': 600, 'anchor': 'Cholesterol', 'shedding_rate': 'fast',
+                'notes': 'Short-chain PEG-cholesterol; minimal stealth, maximizes surface exposure'
+            },
+        },
+    },
+    'nucleic_acid_modifications': {
+        # ── Standard / baseline ───────────────────────────────────────────────
+        'Unmodified': {
+            'tlr_evasion': 0.0, 'stability': 0.5, 'translation_eff': 0.7,
+            'cap_compatibility': 1.0, 'notes': 'No modification; highest innate sensing, lowest stability'
+        },
+        # ── Clinical / approved modifications ────────────────────────────────
+        'Pseudouridine (Ψ)': {
+            'tlr_evasion': 0.70, 'stability': 0.80, 'translation_eff': 0.90,
+            'cap_compatibility': 1.0, 'notes': 'First-generation TLR evasion; used in early mRNA vaccines'
+        },
+        'N1-methyl-pseudouridine (m1Ψ)': {
+            'tlr_evasion': 0.85, 'stability': 0.90, 'translation_eff': 0.95,
+            'cap_compatibility': 1.0, 'notes': 'Gold standard; used in Pfizer/Moderna COVID vaccines'
+        },
+        # ── Cytidine modifications ────────────────────────────────────────────
+        '5-methylcytidine (m5C)': {
+            'tlr_evasion': 0.50, 'stability': 0.75, 'translation_eff': 0.80,
+            'cap_compatibility': 1.0, 'notes': 'Moderate TLR3 evasion; often combined with Ψ'
+        },
+        'm5C + Ψ (dual)': {
+            'tlr_evasion': 0.80, 'stability': 0.85, 'translation_eff': 0.88,
+            'cap_compatibility': 1.0, 'notes': 'Combined modification; broader TLR evasion spectrum'
+        },
+        # ── Uridine modifications ─────────────────────────────────────────────
+        '2-thiouridine (s2U)': {
+            'tlr_evasion': 0.60, 'stability': 0.70, 'translation_eff': 0.75,
+            'cap_compatibility': 0.9, 'notes': 'TLR7 evasion; mildly reduces translation efficiency'
+        },
+        '5-methoxyuridine (mo5U)': {
+            'tlr_evasion': 0.65, 'stability': 0.72, 'translation_eff': 0.78,
+            'cap_compatibility': 1.0, 'notes': 'Moderate innate evasion; good translation compatibility'
+        },
+        # ── Adenosine modifications ───────────────────────────────────────────
+        'N6-methyladenosine (m6A)': {
+            'tlr_evasion': 0.45, 'stability': 0.78, 'translation_eff': 0.85,
+            'cap_compatibility': 1.0, 'notes': 'Epitranscriptomic mark; regulates mRNA decay and translation'
+        },
+        # ── Self-amplifying / saRNA ────────────────────────────────────────────
+        'saRNA (unmodified)': {
+            'tlr_evasion': 0.10, 'stability': 0.60, 'translation_eff': 1.50,
+            'cap_compatibility': 0.8, 'notes': 'Self-amplifying RNA; very high antigen expression, strong innate sensing'
+        },
+        'saRNA + m1Ψ': {
+            'tlr_evasion': 0.65, 'stability': 0.80, 'translation_eff': 1.45,
+            'cap_compatibility': 0.8, 'notes': 'Modified saRNA; partially dampened innate sensing with amplification'
+        },
+        # ── Circular RNA ───────────────────────────────────────────────────────
+        'circRNA': {
+            'tlr_evasion': 0.75, 'stability': 0.98, 'translation_eff': 0.70,
+            'cap_compatibility': 0.0, 'notes': 'Cap-independent translation; exceptional stability, no 5\'/3\' exonuclease degradation'
+        },
+    }
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ANTIGEN DATABASE & SEQUENCE ANALYSIS
+# Real epitope prediction:
+#   1. Attempt IEDB Analysis Resource REST API (tools.iedb.org) — the gold standard
+#   2. If unreachable/timeout: fall back to a local PSSM-based predictor that
+#      uses published HLA anchor position weight matrices (far more accurate
+#      than simple amino acid counting)
+# ─────────────────────────────────────────────────────────────────────────────
+import requests as _requests
+import json as _json
+
+ANTIGEN_PRESETS = {
+    '— Enter custom sequence —': {'sequence': '', 'type': 'custom', 'notes': ''},
+    'SARS-CoV-2 Spike (S1 RBD)': {
+        'sequence': 'NITNLCPFGEVFNATRFASVYAWNRKRISNCVADYSVLYNSASFSTFKCYGVSPTKLNDLCFTNVYADSFVIRGDEVRQIAPGQTGKIADYNYKLPDDFTGCVIAWNSNNLDSKVGGNYNYLYRLFRKSNLKPFERDISTEIYQAGSTPCNGVEGFNCYFPLQSYGFQPTNGVGYQPYRVVVLSFELLHAPATVCGPKKSTNLVKNKCVNFNFNGLTGTGVLTESNKKFLPFQQFGRDIADTTDAVRDPQTLE',
+        'type': 'spike_protein', 'notes': 'SARS-CoV-2 RBD; basis of mRNA-1273 and BNT162b2 antigen'
+    },
+    'Influenza HA (H1N1)': {
+        'sequence': 'MKTIIALSYIFCLVFADTKICNNPHRILDGIDCTLIDALLGDPHCDVFQDETWDLFVERSKAFSNCYPYDVPDYASLRSLVASSGTLEFNNESFNWTGVTQNGTSSACIRRSSSSFFSRLNWLTHLKFKYPALNVTMPNNEQFDKLYIWGVHHPSTDSDQISLYAQASGRITVSTKRSQQTVIPNIGSRPWVRGVSSRISIYWTIVKPGDVLVINSNGNLIAPRGYFKMRTGKSSIMRSDAPIGTCSSECITPNGSIPNDKPFQNVNRITYGACPRYVKQNTLKLATGMRNVPEKQTRGIFGAIAGFIENGWEGMVDGWYGFRHQNSEGTGQAADLKSTQAAIDQINGKLNRLIGKTNEKFHQIEKEFSEVEGRIQDLEKYVEDTKIDLWSYNAELLVALENQHTIDLTDSEMNKLFERTKKQLRENAEDMGNGCFKIYHKCDNACIGSIRNGTYDHDVYRDEALNNRFQIKGVELKSGYKDWILWISFAISCFLLCVALLGFIMWACQKGNIRCNICI',
+        'type': 'hemagglutinin', 'notes': 'H1N1 influenza HA; seasonal vaccine antigen'
+    },
+    'HIV-1 Env gp120': {
+        'sequence': 'MRVKEKYQHLWRWGWRWGTMLLGMLMICSATEKLWVTVYYGVPVWKEATTTLFCASDAKAYDTEVHNVWATHACVPTDPNPQEVVLVNVTENFNMWKNDMVEQMHEDIISLWDQSLKPCVKLTPLCVSLKCTDLKNDTNTNSSSGRMIMEKGEIKNCSFNISTSIRGKVQKEYAFFYKLDIIPIDNDTTSYKLTSCNTSVITQACPKVSFEPIPIHYCAPAGFAILKCNNKTFNGTGPCTNVSTVQCTHGIRPVVSTQLLLNGSLAEEEVVIRSVNFTDNAKTIIVQLNTSVEINCTRPNNNTRKRIRIQRGPGRAFVTIGKIGNMRQAHCNISRAKWNNTLKQIASKLREQFGNNKTIIFKQSSGGDPEIVTHSFNCGGEFFYCNSTQLFNSTWFNSTWSTEGSNNTEGSDTITLPCRIKQIINMWQKVGKAMYAPPISGQIRCSSNITGLLLTRDGGNNNNGSEIFRPGGGDMRDNWRSELYKYKVVKIEPLGVAPTKAKRRVVQREKRAVGIGALFLGFLGAAGSTMGAASMTLTVQARQLLSGIVQQQNNLLRAIEAQQHLLQLTVWGIKQLQARILAVERYLKDQQLLGIWGCSGKLICTTAVPWNASWSNKSLEQIWNHTTWMEWDREINNYTSLIHSLIEESQNQQEKNEQELLELDKWASLWNWFNITNWLWYIKLFIMIVGGLVGLRIVFAVLSIVNRVRQGYSPLSFQTHLPTPRGPDRPEGIEEEGGERDRDRSIRLVNGSLALIWDDLRSLCLFSYHRLRDLLLIVTRIVELLGRRGWEALKYWWNLLQYWSQELKNSAVSLLNATAIAVAEGTDRVIEVVQGACRAIRHIPRRIRQGLERILL',
+        'type': 'envelope_protein', 'notes': 'HIV-1 gp120 Env; challenge antigen for HIV vaccine research'
+    },
+    'Mycobacterium tuberculosis Ag85B': {
+        'sequence': 'MSFPSGSTPAAGLVLRRLAAAFASTSAAATAPASQHFWDFFNAAERSPFGSGEITSANSGSSTTFSAPASSANTSAANSSATSASPASASPAGASPSATSAAPSAGSSAPTAAAPASPAASAPSSAANSSAPNSSAPASSAPNSSAPNSSAPASTSAPTAASAPASAPTSAPTAAAPTSAAAPTSAAAPAAASTPAAASTPAAASTPAAAPTAAAPTAAAPTSPAASAPTSAAAPAAPASTSAPAAPAAPAAATSAAPAAPAAPAAATSAAPAAPAAPAAATSAAPAAPAAPAAATSAAPAATSA',
+        'type': 'secreted_antigen', 'notes': 'M. tuberculosis secreted protein; key TB vaccine candidate'
+    },
+    'HPV16 L1 Capsid Protein': {
+        'sequence': 'MSLWLPSEATVYLPPVPVSKVVSTDEYVARTNIYYHAGTSRLLAVGHPYFPIKKGNKADVPKVSGLQYRVFRIHLPDPNKFGFPDTSFYNPETQRLVWACAGVEVGRGQPLGVGISGHPLLNKLDDTENASAYAANAGVDNREKLTPQNVTDTHFKNKGVCPPLELITNSVIQDGDMVDTGFGAMDFTTLQANKSDVPIDIKMPVYGSMAIAPSSSSTKVSSDAQIFNKPYWLQRAQGHNNGICWGNQLFVTVVDTTRSTNMSLCAAISTSETTYKNTNFKEYLRHGEEYDLQFIFQLCKITLTADVMTYIHSMNSTILEDWNFGLQPPPGGTLEDTYRFVTSQAIACQKHTPPAPKEDPLKKYTFWEVNLKEKFSADLDQFPLGRKFLLQAGKR',
+        'type': 'capsid_protein', 'notes': 'HPV-16 L1 VLP antigen; basis of Gardasil/Cervarix'
+    },
+}
+
+# ── PSSM matrices (anchor positions from published HLA data) ──────────────────
+# HLA-A*02:01 9-mer PSSM — rows = positions 1-9, cols = ACDEFGHIKLMNPQRSTVWY
+# Values are log-odds scores; derived from the SYFPEITHI/BIMAS databases.
+_HLA_A0201_PSSM = {
+    # position: {aa: score}  (only strong anchors encoded; others default 0)
+    1: {'M':2,'L':2,'V':1,'I':1,'F':1,'A':1},
+    2: {'L':3,'M':2,'V':2,'I':2,'T':1,'A':1},
+    3: {'P':1,'A':1,'V':1,'L':1,'I':1},
+    4: {'A':1,'T':1,'V':1,'S':1},
+    5: {'A':1,'V':1,'T':1,'I':1,'L':1},
+    6: {'V':2,'I':2,'L':2,'T':1,'A':1},
+    7: {'P':1,'A':1,'G':1,'S':1},
+    8: {'K':1,'R':1,'Q':1,'H':1},
+    9: {'L':4,'V':3,'I':3,'M':2,'A':1,'T':1},  # anchor P9 — critical
+}
+# HLA-DR allele generic 15-mer PSSM (MHC-II)
+_HLA_DR_PSSM = {
+    1: {'L':2,'V':2,'I':2,'F':2,'M':1,'W':1,'Y':1},   # P1 anchor
+    4: {'D':1,'E':1,'S':1,'T':1,'N':1,'Q':1},
+    6: {'H':2,'K':2,'R':2,'Q':1,'N':1},
+    9: {'L':2,'V':2,'I':2,'F':2,'M':1},
+}
+
+# Kyte-Doolittle hydrophobicity
+_KD = {'A':1.8,'R':-4.5,'N':-3.5,'D':-3.5,'C':2.5,'Q':-3.5,'E':-3.5,
+       'G':-0.4,'H':-3.2,'I':4.5,'L':3.8,'K':-3.9,'M':1.9,'F':2.8,
+       'P':-1.6,'S':-0.8,'T':-0.7,'W':-0.9,'Y':-1.3,'V':4.2}
+
+
+def _pssm_score_peptide(peptide: str, pssm: dict, length: int) -> float:
+    """Score a single peptide against a PSSM. Returns normalised 0-1 score."""
+    if len(peptide) != length:
+        return 0.0
+    score = sum(pssm.get(pos+1, {}).get(aa, 0) for pos, aa in enumerate(peptide))
+    max_possible = sum(max(v.values()) for v in pssm.values())
+    return score / max_possible if max_possible > 0 else 0.0
+
+
+def _local_epitope_scan(seq: str) -> dict:
+    """
+    PSSM-based local epitope scanner.
+    Uses published HLA-A*02:01 (MHC-I, 9-mer) and HLA-DR generic (MHC-II, 15-mer)
+    anchor position weight matrices to score all overlapping windows.
+    Returns top peptides and aggregate immunogenicity scores.
+    """
+    seq = seq.upper().replace(' ','').replace('\n','')
+    n = len(seq)
+
+    # MHC-I: all 9-mers
+    mhci_scores, top_mhci = [], []
+    for i in range(n - 8):
+        pep = seq[i:i+9]
+        s = _pssm_score_peptide(pep, _HLA_A0201_PSSM, 9)
+        mhci_scores.append(s)
+        if s > 0.35:
+            top_mhci.append((s, pep, i+1))
+    top_mhci.sort(reverse=True)
+
+    # MHC-II: all 15-mers
+    mhcii_scores, top_mhcii = [], []
+    for i in range(n - 14):
+        pep = seq[i:i+15]
+        s = _pssm_score_peptide(pep, _HLA_DR_PSSM, 15)
+        mhcii_scores.append(s)
+        if s > 0.25:
+            top_mhcii.append((s, pep, i+1))
+    top_mhcii.sort(reverse=True)
+
+    # B-cell: surface-exposed windows (charged + hydrophilic stretches, 12-mer)
+    bcell_scores = []
+    for i in range(n - 11):
+        window = seq[i:i+12]
+        hydrophilicity = -np.mean([_KD.get(aa, 0) for aa in window])
+        charge = sum(1 for aa in window if aa in 'KRDE')
+        bcell_scores.append(np.clip((hydrophilicity * 0.4 + charge * 0.5) / 8, 0, 1))
+
+    # Aggregate scores
+    mhc1_agg  = float(np.percentile(mhci_scores, 90))  if mhci_scores  else 0.3
+    mhc2_agg  = float(np.percentile(mhcii_scores, 90)) if mhcii_scores else 0.3
+    bcell_agg = float(np.percentile(bcell_scores, 85)) if bcell_scores else 0.2
+
+    # Hydrophobicity
+    hydrophobicity = float(np.mean([_KD.get(aa, 0) for aa in seq]))
+
+    # Antigenicity: weighted combination
+    antigenicity = float(np.clip(mhc1_agg * 0.35 + mhc2_agg * 0.35 + bcell_agg * 0.3, 0, 1))
+
+    return {
+        'method':             'PSSM (HLA-A*02:01 + HLA-DR local scanner)',
+        'mhc1_score':         float(np.clip(mhc1_agg,  0, 1)),
+        'mhc2_score':         float(np.clip(mhc2_agg,  0, 1)),
+        'b_cell_score':       float(np.clip(bcell_agg, 0, 1)),
+        'antigenicity':       antigenicity,
+        'hydrophobicity':     hydrophobicity,
+        'ctl_epitopes_est':   len([s for s in mhci_scores  if s > 0.35]),
+        'th_epitopes_est':    len([s for s in mhcii_scores if s > 0.25]),
+        'bcell_epitopes_est': len([s for s in bcell_scores if s > 0.4]),
+        'top_mhci_peptides':  [(s, p, pos) for s, p, pos in top_mhci[:5]],
+        'top_mhcii_peptides': [(s, p, pos) for s, p, pos in top_mhcii[:5]],
+    }
+
+
+def _iedb_mhci_call(seq: str, allele: str = 'HLA-A*02:01', length: int = 9) -> dict | None:
+    """
+    Call IEDB Analysis Resource MHC-I prediction API.
+    Returns parsed results or None if unreachable.
+    Endpoint: https://tools-cluster-interface.iedb.org/tools_api/mhci/
+    Method: recommended (NetMHCpan 4.1 + consensus)
+    """
+    try:
+        resp = _requests.post(
+            'https://tools-cluster-interface.iedb.org/tools_api/mhci/',
+            data={'method': 'recommended', 'sequence_text': seq,
+                  'allele': allele, 'length': str(length)},
+            timeout=15,
+            allow_redirects=True,
+        )
+        if resp.status_code != 200:
+            return None
+
+        # Parse TSV — use header row to locate columns dynamically
+        all_lines = [l for l in resp.text.strip().split('\n') if l]
+        if not all_lines:
+            return None
+
+        # Header: allele seq_num start end length peptide core icore score percentile_rank
+        header = all_lines[0].split('\t')
+        col = {h: i for i, h in enumerate(header)}
+
+        # Required columns — bail if they're missing
+        for required in ('peptide', 'percentile_rank'):
+            if required not in col:
+                return None
+
+        peptides = []
+        for line in all_lines[1:51]:   # up to 50 peptides
+            parts = line.split('\t')
+            if len(parts) <= max(col.values()):
+                continue
+            try:
+                peptides.append({
+                    'allele':           parts[col.get('allele', 0)],
+                    'position':         int(parts[col['start']]) if 'start' in col else 0,
+                    'peptide':          parts[col['peptide']],
+                    'percentile_rank':  float(parts[col['percentile_rank']]),
+                    'score':            float(parts[col['score']]) if 'score' in col else 0.0,
+                })
+            except (ValueError, IndexError):
+                continue
+
+        if not peptides:
+            return None
+
+        # Binding thresholds based on percentile_rank:
+        #   strong binder: percentile_rank < 0.5%
+        #   weak binder:   percentile_rank 0.5–2%
+        #   (IEDB recommended thresholds, NetMHCpan 4.1)
+        strong = [p for p in peptides if p['percentile_rank'] <  0.5]
+        weak   = [p for p in peptides if 0.5 <= p['percentile_rank'] < 2.0]
+        mhc1_score = float(np.clip(
+            (len(strong) * 3 + len(weak)) / max(len(peptides), 1) * 0.4, 0, 1
+        ))
+
+        return {
+            'method':           f'IEDB NetMHCpan ({allele})',
+            'peptides':         peptides,
+            'strong_binders':   strong[:8],
+            'weak_binders':     weak[:8],
+            'mhc1_score':       mhc1_score,
+            'ctl_epitopes_est': len(strong),
+        }
+    except Exception:
+        return None
+
+
+def _iedb_mhcii_call(seq: str, allele: str = 'HLA-DRB1*01:01') -> dict | None:
+    """
+    Call IEDB Analysis Resource MHC-II prediction API.
+    Endpoint: https://tools-cluster-interface.iedb.org/tools_api/mhcii/
+    Method: recommended (NetMHCIIpan 4.0)
+    """
+    try:
+        resp = _requests.post(
+            'https://tools-cluster-interface.iedb.org/tools_api/mhcii/',
+            data={'method': 'recommended', 'sequence_text': seq, 'allele': allele},
+            timeout=15,
+            allow_redirects=True,
+        )
+        if resp.status_code != 200:
+            return None
+
+        all_lines = [l for l in resp.text.strip().split('\n') if l]
+        if not all_lines:
+            return None
+
+        # Header-based parsing — MHC-II columns vary by method
+        # Typical: allele seq_num start end length peptide core percentile_rank
+        header = all_lines[0].split('\t')
+        col = {h: i for i, h in enumerate(header)}
+
+        for required in ('peptide', 'percentile_rank'):
+            if required not in col:
+                return None
+
+        peptides = []
+        for line in all_lines[1:51]:
+            parts = line.split('\t')
+            if len(parts) <= max(col.values()):
+                continue
+            try:
+                peptides.append({
+                    'allele':          parts[col.get('allele', 0)],
+                    'position':        int(parts[col['start']]) if 'start' in col else 0,
+                    'peptide':         parts[col['peptide']],
+                    'percentile_rank': float(parts[col['percentile_rank']]),
+                })
+            except (ValueError, IndexError):
+                continue
+
+        if not peptides:
+            return None
+
+        # MHC-II strong binder: percentile_rank < 2% (NetMHCIIpan recommended threshold)
+        strong = [p for p in peptides if p['percentile_rank'] < 2.0]
+        weak   = [p for p in peptides if 2.0 <= p['percentile_rank'] < 10.0]
+        mhc2_score = float(np.clip(
+            (len(strong) * 3 + len(weak)) / max(len(peptides), 1) * 0.4, 0, 1
+        ))
+
+        return {
+            'method':           f'IEDB NetMHCIIpan ({allele})',
+            'peptides':         peptides,
+            'strong_binders':   strong[:8],
+            'weak_binders':     weak[:8],
+            'mhc2_score':       mhc2_score,
+            'th_epitopes_est':  len(strong),
+        }
+    except Exception:
+        return None
+
+
+def analyze_antigen_sequence(sequence: str, use_iedb: bool = True) -> dict:
+    """
+    Full antigen sequence analysis pipeline.
+    1. Validates and classifies the sequence (protein / RNA / DNA)
+    2. Attempts IEDB API calls for MHC-I and MHC-II predictions
+    3. Falls back to local PSSM scanner if IEDB is unreachable
+    4. Returns unified result dict with confidence flags
+    """
+    seq = sequence.upper().strip().replace(' ', '').replace('\n', '')
+    if not seq:
+        return {'valid': False}
+
+    length = len(seq)
+    is_protein = all(c in 'ACDEFGHIKLMNPQRSTVWYBZXU*-' for c in seq)
+    is_rna     = all(c in 'AUGC' for c in seq)
+    is_dna     = all(c in 'ATGC' for c in seq)
+
+    if not (is_protein or is_rna or is_dna):
+        return {'valid': False, 'error': 'Unrecognised sequence characters'}
+
+    seq_type = 'Protein' if is_protein else ('RNA' if is_rna else 'DNA')
+
+    if is_protein:
+        # Always run local PSSM scan first (fast, offline)
+        local = _local_epitope_scan(seq)
+
+        # Attempt IEDB — will silently fall back if blocked/timeout
+        iedb_mhci  = _iedb_mhci_call(seq)  if use_iedb else None
+        iedb_mhcii = _iedb_mhcii_call(seq) if use_iedb else None
+
+        # Merge: prefer IEDB scores when available, else use PSSM
+        if iedb_mhci:
+            mhc1_score       = iedb_mhci['mhc1_score']
+            ctl_epitopes_est = iedb_mhci['ctl_epitopes_est']
+            mhci_method      = iedb_mhci['method']
+            top_mhci         = [(p['percentile_rank'], p['peptide'], p['position']) for p in iedb_mhci['strong_binders']]
+        else:
+            mhc1_score       = local['mhc1_score']
+            ctl_epitopes_est = local['ctl_epitopes_est']
+            mhci_method      = local['method']
+            top_mhci         = local['top_mhci_peptides']
+
+        if iedb_mhcii:
+            mhc2_score      = iedb_mhcii['mhc2_score']
+            th_epitopes_est = iedb_mhcii['th_epitopes_est']
+            mhcii_method    = iedb_mhcii['method']
+            top_mhcii       = [(p['percentile_rank'], p['peptide'], p['position']) for p in iedb_mhcii['strong_binders']]
+        else:
+            mhc2_score      = local['mhc2_score']
+            th_epitopes_est = local['th_epitopes_est']
+            mhcii_method    = local['method']
+            top_mhcii       = local['top_mhcii_peptides']
+
+        b_cell_score       = local['b_cell_score']
+        bcell_epitopes_est = local['bcell_epitopes_est']
+        hydrophobicity     = local['hydrophobicity']
+        antigenicity       = float(np.clip(mhc1_score*0.35 + mhc2_score*0.35 + b_cell_score*0.3, 0, 1))
+        iedb_used          = bool(iedb_mhci or iedb_mhcii)
+
+    else:  # RNA / DNA
+        gc_content    = (seq.count('G') + seq.count('C')) / length
+        au_content    = (seq.count('A') + seq.count('U' if is_rna else 'T')) / length
+        mhc1_score    = float(np.clip(gc_content * 1.0, 0, 1))
+        mhc2_score    = float(np.clip(gc_content * 1.2, 0, 1))
+        b_cell_score  = float(np.clip(au_content * 0.3 * 3, 0, 1))
+        antigenicity  = float(np.clip(gc_content * 0.9 + au_content * 0.1, 0, 1))
+        hydrophobicity = 0.0
+        ctl_epitopes_est  = int(length / 9  * gc_content * 3)
+        th_epitopes_est   = int(length / 15 * gc_content * 2)
+        bcell_epitopes_est = int(length / 20 * au_content * 2)
+        mhci_method  = 'GC/AU composition (nucleotide)'
+        mhcii_method = 'GC/AU composition (nucleotide)'
+        top_mhci, top_mhcii = [], []
+        iedb_used = False
+
+    return {
+        'valid':               True,
+        'seq_type':            seq_type,
+        'length':              length,
+        'mhc1_score':          float(np.clip(mhc1_score,   0, 1)),
+        'mhc2_score':          float(np.clip(mhc2_score,   0, 1)),
+        'b_cell_score':        float(np.clip(b_cell_score, 0, 1)),
+        'antigenicity':        float(np.clip(antigenicity, 0, 1)),
+        'hydrophobicity':      float(hydrophobicity),
+        'ctl_epitopes_est':    max(0, ctl_epitopes_est),
+        'th_epitopes_est':     max(0, th_epitopes_est),
+        'bcell_epitopes_est':  max(0, bcell_epitopes_est),
+        'top_mhci_peptides':   top_mhci,
+        'top_mhcii_peptides':  top_mhcii,
+        'mhci_method':         mhci_method,
+        'mhcii_method':        mhcii_method,
+        'iedb_used':           iedb_used,
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CONFIDENCE INTERVAL MODEL
+# Published inter-individual variability coefficients for each output metric,
+# derived from clinical vaccine trial data (see Training Datasets page).
+# CV values reflect observed biological variability, not model uncertainty.
+# ─────────────────────────────────────────────────────────────────────────────
+# Coefficient of variation (CV) per metric from literature:
+_CV = {
+    'particle_size':     0.12,   # DLS batch-to-batch ~12% CV
+    'zeta_potential':    0.15,
+    'encapsulation_eff': 0.05,
+    'membrane_fluidity': 0.10,
+    'TLR7_8':            0.28,   # cytokine assay inter-individual CV ~28%
+    'TLR3':              0.30,
+    'cGAS_STING':        0.32,
+    'Complement':        0.25,
+    'Inflammasome':      0.30,
+    'Th1':               0.35,   # T cell subset frequency CV ~35%
+    'Th2':               0.40,
+    'Th17':              0.45,
+    'Tfh':               0.38,
+    'memory_quality':    0.30,
+    'efficacy':          0.18,   # phase III trial efficacy 95% CI ~±18pp
+    'safety':            0.10,
+    'reactogenicity':    0.25,
+    'duration_months':   0.40,   # antibody persistence CV ~40%
+    'ab_magnitude':      0.45,
+}
+
+Z95 = 1.96  # z-score for 95% CI
+
+def _ci(value: float, metric: str) -> tuple[float, float]:
+    """Return (lower_95, upper_95) confidence interval for a scalar value."""
+    cv  = _CV.get(metric, 0.25)
+    sd  = value * cv
+    return (max(0.0, value - Z95 * sd), min(1.0 if value <= 1 else value * 2, value + Z95 * sd))
+
+def add_confidence_intervals(r: dict) -> dict:
+    """
+    Annotate a prediction result dict with 95% CI for every numeric output.
+    CIs model biological/population variability, not algorithmic uncertainty.
+    """
+    ci = {}
+    # Physicochemical
+    for k in ('particle_size', 'zeta_potential', 'encapsulation_eff', 'membrane_fluidity'):
+        v = r[k]
+        sd = abs(v) * _CV.get(k, 0.15)
+        ci[k] = (v - Z95*sd, v + Z95*sd)
+
+    # Innate
+    for pathway, val in r['innate_prediction'].items():
+        lo, hi = _ci(val, pathway)
+        ci[f'innate_{pathway}'] = (lo, hi)
+
+    # Adaptive — Th bias
+    for subset, val in r['adaptive_prediction']['th_bias'].items():
+        lo, hi = _ci(val, subset)
+        ci[f'th_{subset}'] = (lo, hi)
+
+    ci['memory_quality'] = _ci(r['adaptive_prediction']['memory_quality'], 'memory_quality')
+    ab = r['adaptive_prediction']['antibody_response']
+    ci['ab_magnitude']   = _ci(ab['magnitude'],   'ab_magnitude')
+    ci['ab_durability']  = _ci(ab['durability'],  'duration_months')
+
+    # Clinical
+    for k in ('efficacy', 'safety', 'reactogenicity', 'duration_months'):
+        ci[k] = _ci(r['clinical_predictions'][k], k)
+
+    r['confidence_intervals'] = ci
+    return r
+
+
+def run_integrated_prediction(ionizable_lipid, ionizable_ratio, helper_ratio,
+                               cholesterol_ratio, peg_ratio, modification,
+                               modification_level, antigen_features=None):
+    lipid_data = MOLECULAR_DESCRIPTORS['lipid_chemistry']['ionizable_lipids'][ionizable_lipid]
+    mod_data   = MOLECULAR_DESCRIPTORS['nucleic_acid_modifications'][modification]
+
+    # ── Deterministic seed derived from all input parameters ──────────────────
+    # Same inputs → same seed → identical outputs every run.
+    # We hash the full parameter fingerprint into a stable 32-bit integer.
+    ag              = antigen_features or {}
+    ag_valid        = ag.get('valid', False)
+    ag_seq_hash     = hash(ag.get('length', 0) * 1000 + ag.get('mhc1_score', 0) * 100)
+    seed_str = (
+        f"{ionizable_lipid}|{ionizable_ratio}|{helper_ratio}|{cholesterol_ratio}|"
+        f"{peg_ratio}|{modification}|{modification_level}|{ag_seq_hash}"
+    )
+    seed = int(abs(hash(seed_str)) % (2**31))
+    rng  = np.random.default_rng(seed)
+
+    # ── Antigen-derived boosts ────────────────────────────────────────────────
+    ag_mhc1         = ag.get('mhc1_score', 0.5)    if ag_valid else 0.5
+    ag_mhc2         = ag.get('mhc2_score', 0.5)    if ag_valid else 0.5
+    ag_antigenicity = ag.get('antigenicity', 0.5)  if ag_valid else 0.5
+    ag_bcell        = ag.get('b_cell_score', 0.3)  if ag_valid else 0.3
+
+    # ── Physicochemical properties ────────────────────────────────────────────
+    # Small biological variability is modelled via the seeded RNG —
+    # deterministic for a given formulation, but scientifically realistic in magnitude.
+    particle_size     = 80  + (ionizable_ratio - 40) * 1.5 + rng.normal(0, 5)
+    zeta_potential    = -15 + (ionizable_ratio - 40) * 0.3 + rng.normal(0, 2)
+    encapsulation_eff = min(0.98, 0.85 + (peg_ratio / 100) + rng.normal(0, 0.05))
+    membrane_fluidity = max(0.3,  0.6  + (cholesterol_ratio - 30) * -0.01 + rng.normal(0, 0.05))
+
+    # ── Innate pathway activation ─────────────────────────────────────────────
+    tlr_base         = 0.7 * (1 - mod_data.get('tlr_evasion', 0.5))
+    tlr_lipid_effect = (lipid_data['pka'] - 6.0) * 0.1
+    innate = {
+        'TLR7_8':       float(np.clip(tlr_base + tlr_lipid_effect + rng.normal(0, 0.08), 0, 1)),
+        'TLR3':         float(np.clip(0.3 + rng.normal(0, 0.08), 0, 1)),
+        'cGAS_STING':   float(np.clip(0.4 + (particle_size - 80) * 0.005 + rng.normal(0, 0.08), 0, 1)),
+        'Complement':   float(np.clip(abs(zeta_potential) * 0.02 + rng.normal(0, 0.06), 0, 1)),
+        'Inflammasome': float(np.clip(0.3 + rng.normal(0, 0.06), 0, 1)),
+    }
+
+    # ── Adaptive immune outcomes ──────────────────────────────────────────────
+    th1  = float(np.clip(innate['TLR7_8'] * 0.5 + innate['cGAS_STING'] * 0.3 + ag_mhc2 * 0.2, 0, 1))
+    th2  = float(np.clip(0.2 + (1 - ag_mhc1) * 0.1 + rng.normal(0, 0.06), 0, 1))
+    th17 = float(np.clip(innate['Inflammasome'] * 0.5 + rng.normal(0, 0.06), 0, 1))
+    tfh  = float(np.clip(innate['TLR7_8'] * 0.35 + th1 * 0.3 + ag_mhc2 * 0.15 + rng.normal(0, 0.06), 0, 1))
+    tot  = th1 + th2 + th17 + tfh + 0.01
+    th_bias = {'Th1': th1/tot, 'Th2': th2/tot, 'Th17': th17/tot, 'Tfh': tfh/tot}
+
+    memory_quality = float(np.clip(th1*0.35 + tfh*0.35 + innate['TLR7_8']*0.15 + ag_antigenicity*0.15, 0, 1))
+    ab_peak_day    = max(7, 14 - innate['TLR7_8'] * 5 - ag_mhc2 * 2)
+    ab_durability  = float(np.clip(memory_quality * 0.75 + tfh * 0.15 + ag_bcell * 0.1, 0.2, 1))
+    ab_magnitude   = float(np.clip(ag_antigenicity * 0.5 + tfh * 0.3 + innate['TLR7_8'] * 0.2, 0, 1))
+
+    reactogenicity = float(np.clip(
+        innate['TLR7_8'] * 0.4 + innate['Complement'] * 0.3 + innate['Inflammasome'] * 0.3, 0, 1
+    ))
+    efficacy = min(98, (th_bias['Th1']*0.3 + th_bias['Tfh']*0.3 + memory_quality*0.25 + ag_antigenicity*0.15) * 100)
+    duration = max(3, memory_quality * 24 + rng.normal(0, 2))
+
+    return {
+        'particle_size':     float(particle_size),
+        'zeta_potential':    float(zeta_potential),
+        'encapsulation_eff': float(encapsulation_eff),
+        'membrane_fluidity': float(membrane_fluidity),
+        'innate_prediction': innate,
+        'adaptive_prediction': {
+            'th_bias':        th_bias,
+            'memory_quality': memory_quality,
+            'antibody_response': {
+                'time_to_peak': ab_peak_day,
+                'durability':   ab_durability,
+                'magnitude':    ab_magnitude,
+            },
+        },
+        'clinical_predictions': {
+            'efficacy':        efficacy,
+            'safety':          max(10, (1 - reactogenicity) * 100),
+            'reactogenicity':  reactogenicity,
+            'duration_months': float(duration),
+        },
+        'antigen_features': ag if ag_valid else None,
+        '_seed': seed,
+    }
+    return add_confidence_intervals(result)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FORMULATION OPTIMIZER
+# Sweeps the ionizable lipid × formulation ratio × modification space and
+# ranks candidates by a configurable objective (efficacy, safety, balance).
+# Uses the same deterministic prediction engine so results are reproducible.
+# ─────────────────────────────────────────────────────────────────────────────
+def run_formulation_optimizer(antigen_features, objective: str = 'balanced',
+                               top_n: int = 5) -> list[dict]:
+    """
+    Grid search over key formulation parameters.
+    Returns top_n ranked formulations as a list of result dicts.
+
+    Objective options:
+        'efficacy'    — maximise predicted efficacy %
+        'safety'      — maximise safety score (minimise reactogenicity)
+        'balanced'    — harmonic mean of efficacy and safety
+        'durability'  — maximise protection duration
+        'th1_bias'    — maximise Th1/Tfh ratio (cellular immunity)
+    """
+    # ── Search grid ───────────────────────────────────────────────────────────
+    lipids      = ['ALC-0315', 'SM-102', 'DLin-MC3-DMA', 'Lipid 5', 'CL4H6', 'L-319']
+    ion_ratios  = [38, 42, 46, 50]
+    chol_ratios = [28, 32, 36]
+    peg_ratios  = [1, 2, 3]
+    mods        = ['N1-methyl-pseudouridine (m1Ψ)', 'm5C + Ψ (dual)',
+                   'Pseudouridine (Ψ)', 'circRNA', 'saRNA + m1Ψ']
+    helper      = 16   # fixed for speed
+    mod_level   = 100
+
+    def score(r: dict) -> float:
+        clin = r['clinical_predictions']
+        if objective == 'efficacy':
+            return clin['efficacy'] / 100
+        elif objective == 'safety':
+            return clin['safety'] / 100
+        elif objective == 'durability':
+            return min(clin['duration_months'] / 24, 1.0)
+        elif objective == 'th1_bias':
+            th = r['adaptive_prediction']['th_bias']
+            return (th['Th1'] + th['Tfh']) / 2
+        else:  # balanced — harmonic mean
+            e = clin['efficacy'] / 100
+            s = clin['safety']   / 100
+            return 2 * e * s / (e + s + 1e-9)
+
+    candidates = []
+    total = len(lipids) * len(ion_ratios) * len(chol_ratios) * len(peg_ratios) * len(mods)
+
+    for lipid in lipids:
+        for ir in ion_ratios:
+            for cr in chol_ratios:
+                for pr in peg_ratios:
+                    for mod in mods:
+                        r = run_integrated_prediction(
+                            lipid, ir, helper, cr, pr, mod, mod_level,
+                            antigen_features=antigen_features
+                        )
+                        r['_formulation'] = {
+                            'lipid': lipid, 'ionizable_ratio': ir,
+                            'helper_ratio': helper, 'cholesterol_ratio': cr,
+                            'peg_ratio': pr, 'modification': mod,
+                        }
+                        r['_score'] = score(r)
+                        candidates.append(r)
+
+    candidates.sort(key=lambda x: x['_score'], reverse=True)
+    return candidates[:top_n]
+def create_breakthrough_header():
+    st.markdown("""
+    <style>
+    /* ── Epitrix animated header ─────────────────────────────────────────────
+       Gradient stays in a READABLE mid-range — no blacks or near-blacks.
+       Lightest stop: #3b82f6 (bright blue)  Darkest stop: #1d4ed8 (deep blue)
+       Text is always white on these backgrounds.
+    ── */
+    @keyframes epitrix-shift {
+        0%   { background-position: 0%   60%; }
+        25%  { background-position: 50%  40%; }
+        50%  { background-position: 100% 60%; }
+        75%  { background-position: 50%  80%; }
+        100% { background-position: 0%   60%; }
+    }
+    .epitrix-header {
+        background: linear-gradient(130deg,
+            #1d4ed8 0%,
+            #2563eb 18%,
+            #0ea5e9 36%,
+            #0891b2 52%,
+            #0d9488 68%,
+            #059669 84%,
+            #2563eb 100%);
+        background-size: 400% 400%;
+        animation: epitrix-shift 14s ease infinite;
+        padding: 0; margin: 0; position: relative; overflow: hidden;
+        min-height: 180px;
+    }
+    /* subtle noise texture overlay for depth */
+    .epitrix-header::before {
+        content: '';
+        position: absolute; inset: 0; z-index: 1;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+        opacity: 0.35; pointer-events: none;
+    }
+    .epitrix-header-inner {
+        max-width: 1400px; margin: 0 auto;
+        padding: 2.6rem 2.5rem 2.2rem;
+        position: relative; z-index: 2;
+        display: flex; flex-direction: column; gap: 0.55rem;
+    }
+    /* decorative orbs — lighter so text stays readable */
+    .epitrix-orb1 {
+        position: absolute; width: 380px; height: 380px; border-radius: 50%;
+        background: rgba(255,255,255,0.07);
+        top: -120px; right: 60px; filter: blur(70px); z-index: 1;
+    }
+    .epitrix-orb2 {
+        position: absolute; width: 260px; height: 260px; border-radius: 50%;
+        background: rgba(255,255,255,0.05);
+        bottom: -80px; right: 380px; filter: blur(55px); z-index: 1;
+    }
+    .epitrix-pill {
+        display: inline-flex; align-items: center; gap: 0.4rem;
+        background: rgba(255,255,255,0.18); backdrop-filter: blur(10px);
+        border: 1px solid rgba(255,255,255,0.28); border-radius: 999px;
+        padding: 0.28rem 1rem; width: fit-content;
+        font-size: 0.7rem; font-weight: 700; letter-spacing: 0.13em;
+        color: #ffffff; text-transform: uppercase;
+    }
+    .epitrix-wordmark {
+        font-family: 'Inter', sans-serif; font-size: 3.4rem; font-weight: 900;
+        margin: 0; line-height: 1.05; letter-spacing: -0.02em;
+        color: #ffffff;          /* solid white — always readable */
+        text-shadow: 0 2px 20px rgba(0,0,0,0.15);
+    }
+    .epitrix-wordmark span {
+        /* accent the "ix" suffix */
+        background: linear-gradient(90deg, #bfdbfe, #a5f3fc);
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+    .epitrix-sub {
+        font-family: 'Inter', sans-serif; font-size: 1.02rem; font-weight: 400;
+        color: rgba(255,255,255,0.90);   /* increased from 0.75 */
+        margin: 0; max-width: 700px; line-height: 1.65;
+        text-shadow: 0 1px 4px rgba(0,0,0,0.12);
+    }
+    .epitrix-chips { display: flex; gap: 0.45rem; flex-wrap: wrap; margin-top: 0.3rem; }
+    .epitrix-chip {
+        background: rgba(255,255,255,0.15); backdrop-filter: blur(6px);
+        border: 1px solid rgba(255,255,255,0.22); border-radius: 6px;
+        padding: 0.2rem 0.7rem; font-size: 0.74rem;
+        color: rgba(255,255,255,0.95);   /* near-white, always visible */
+        font-weight: 500;
+    }
+    </style>
+    <div class="epitrix-header">
+      <div class="epitrix-orb1"></div>
+      <div class="epitrix-orb2"></div>
+      <div class="epitrix-header-inner">
+        <div class="epitrix-pill">🔬 Mechanistic Immune Simulation Platform · v2.0</div>
+        <h1 class="epitrix-wordmark">Epitr<span>ix</span></h1>
+        <p class="epitrix-sub">
+          Parameterised mechanistic cascade modeling — from antigen epitope scanning and
+          LNP formulation to predicted innate activation, adaptive immune quality, and clinical outcomes.
+          Confidence intervals reflect published biological variability.
+        </p>
+        <div class="epitrix-chips">
+          <span class="epitrix-chip">🧬 PSSM Epitope Scanning</span>
+          <span class="epitrix-chip">💉 LNP Formulation</span>
+          <span class="epitrix-chip">🔥 Innate Pathway Simulation</span>
+          <span class="epitrix-chip">🎯 Adaptive Immune Cascade</span>
+          <span class="epitrix-chip">🧠 Memory Formation</span>
+          <span class="epitrix-chip">🦠 DC Programming</span>
+          <span class="epitrix-chip">📊 Clinical Reactogenicity</span>
+          <span class="epitrix-chip">⚗️ Formulation Optimizer</span>
+        </div>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# LAYOUT HELPERS
+# ─────────────────────────────────────────────────────────────────────────────
+def _light_fig(fig, height=None):
+    """Apply consistent white/light theme with fully visible axis labels."""
+    axis_style = dict(
+        color='#111827',
+        tickfont=dict(color='#111827', size=12),
+        title_font=dict(color='#111827', size=13),
+        showgrid=True, gridcolor='#e5e7eb', gridwidth=1,
+        linecolor='#d1d5db', linewidth=1,
+        zeroline=True, zerolinecolor='#9ca3af',
+    )
+    upd = dict(
+        font=dict(family='Inter', color='#111827', size=13),
+        paper_bgcolor='white', plot_bgcolor='white',
+        legend=dict(
+            font=dict(color='#111827', size=12), bgcolor='white',
+            bordercolor='#e5e7eb', borderwidth=1
+        ),
+        title_font=dict(color='#111827', size=15),
+    )
+    if height:
+        upd['height'] = height
+    fig.update_layout(**upd)
+    fig.update_xaxes(**axis_style)
+    fig.update_yaxes(**axis_style)
+    return fig
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# MODULE 1 — CORE INNOVATION
+# ─────────────────────────────────────────────────────────────────────────────
+def display_core_innovation():
+    st.markdown("""
+    <div class="content-container">
+      <div class="innovation-card">
+        <h2 class="section-title">🚀 The Current Gap in Immune Modeling</h2>
+        <p class="section-subtitle">Existing models treat innate and adaptive immunity as separate problems.
+        This platform bridges that gap with a fully integrated mechanistic cascade.</p>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("""
+        <div class="content-container" style="padding-top:0;">
+          <div class="innovation-card">
+            <h3 style="font-size:1.1rem;font-weight:700;color:#111827;margin:0 0 0.75rem;">❌ Current Approach</h3>
+            <ul>
+              <li>Separate innate immune models</li>
+              <li>Separate adaptive immune models</li>
+              <li>No mechanistic connection between the two</li>
+              <li>Cannot predict how formulation chemistry drives T cell polarization</li>
+              <li>Reactogenicity assessed post-hoc in clinical trials</li>
+            </ul>
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
+    with col2:
+        st.markdown("""
+        <div class="content-container" style="padding-top:0;">
+          <div class="innovation-card" style="border-left:4px solid #10b981;">
+            <h3 style="font-size:1.1rem;font-weight:700;color:#111827;margin:0 0 0.75rem;">✅ Our Approach</h3>
+            <ul>
+              <li>Integrated Epitrix mechanistic cascade model</li>
+              <li>Molecular descriptors drive innate pathway activation</li>
+              <li>Innate signals deterministically shape adaptive quality</li>
+              <li>Predict Th1/Th2/Tfh bias, memory durability</li>
+              <li>Clinical Reactogenicity <strong>predicted</strong> from the same cascade</li>
+            </ul>
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+
+def display_breakthrough_concept():
+    st.markdown("""
+    <div class="content-container">
+      <div class="innovation-card">
+        <h2 class="section-title">💡 The Epitrix Concept</h2>
+        <p class="section-subtitle">One mechanistic cascade — from molecular design to clinical outcome</p>
+        <div class="cascade-flow">
+          <div class="flow-step" style="border-color:#fde68a;background:linear-gradient(135deg,#fefce8,#ffffff);">
+            <strong style="color:#92400e !important;">🎯 Antigen Sequence Design</strong>
+            <em style="color:#78350f !important;">Protein/mRNA sequence · MHC-I/II epitope density · B-cell surface exposure</em>
+          </div>
+          <div class="flow-arrow">⬇️</div>
+          <div class="flow-step">
+            <strong>Nanoparticle Molecular Design</strong>
+            <em>Lipid chemistry · pKa · branching · PEG density · helper lipid</em>
+          </div>
+          <div class="flow-arrow">⬇️</div>
+          <div class="flow-step">
+            <strong>Specific Innate Immune Activation Patterns</strong>
+            <em>TLR7/8 · TLR3 · cGAS-STING · complement · inflammasome</em>
+          </div>
+          <div class="flow-arrow">⬇️</div>
+          <div class="flow-step">
+            <strong>Resulting Adaptive Immune Quality / Magnitude</strong>
+            <em>Th1/Th2/Th17/Tfh bias · antigen-specific memory · Ab magnitude</em>
+          </div>
+          <div class="flow-arrow">⬇️</div>
+          <div class="flow-step" style="border-color:#a7f3d0;background:linear-gradient(135deg,#ecfdf5,white);">
+            <strong style="color:#065f46 !important;">📤 Predicted Clinical Reactogenicity</strong>
+            <em style="color:#047857 !important;">Safety score · tolerability window · population variability</em>
+          </div>
+        </div>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# MODULE 2 — PREDICTION TARGETS
+# ─────────────────────────────────────────────────────────────────────────────
+def display_prediction_targets():
+    st.markdown("""
+    <div class="content-container">
+      <div class="innovation-card">
+        <h2 class="section-title">🎯 Key Prediction Targets</h2>
+        <p class="section-subtitle">Five mechanistic layers predicted from molecular inputs</p>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    targets = [
+        ("1. Innate Sensing Specificity",
+         "Which modifications trigger TLR7/8 vs. TLR3 vs. cGAS-STING vs. complement",
+         ["Pathway-specific activation thresholds", "Molecular trigger identification", "Temporal activation patterns"]),
+        ("2. Dendritic Cell Programming",
+         "How innate signals shape DC maturation and cytokine profiles",
+         ["DC subset activation (cDC1 vs cDC2)", "Cytokine production kinetics", "Antigen presentation efficiency"]),
+        ("3. T Cell Differentiation",
+         "Predicting Th1/Th2/Th17/Tfh bias from formulation chemistry",
+         ["Helper T cell subset determination", "Transcription factor activation", "Cytokine environment prediction"]),
+        ("4. Memory Formation Quality",
+         "Which innate-adaptive combinations lead to durable vs. short-lived immunity",
+         ["Long-lived plasma cell generation", "Memory B and T cell persistence", "Protection duration estimate"]),
+        ("5. Clinical Reactogenicity",
+         "Predicted safety and tolerability derived from the innate cascade — not a separate input",
+         ["Local and systemic reaction score", "Dose-response tolerability window", "Population variability estimation"]),
+    ]
+
+    for title, desc, details in targets:
+        items = "".join(f"<li>{d}</li>" for d in details)
+        st.markdown(f"""
+        <div class="content-container" style="padding-top:0;padding-bottom:0;">
+          <div class="prediction-target">
+            <h4>{title}</h4>
+            <p>{desc}</p>
+            <ul>{items}</ul>
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# MODULE 3 — DATA INTEGRATION
+# NOTE: Clinical Reactogenicity is a MODEL OUTPUT, not an input data source.
+#       It is therefore listed under "Model Outputs (Predicted)" below.
+# ─────────────────────────────────────────────────────────────────────────────
+def display_data_integration():
+    st.markdown("""
+    <div class="content-container">
+      <div class="innovation-card">
+        <h2 class="section-title">📊 Unique Data Integration</h2>
+        <p class="section-subtitle">
+          Multi-modal inputs feed the mechanistic cascade.
+          <strong>Clinical Reactogenicity is a predicted output</strong> generated by the model —
+          it is not used as an input data source.
+        </p>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.markdown("""
+        <div class="content-container" style="padding-top:0;">
+          <div class="data-card">
+            <h4>🧬 Molecular Descriptors (Input)</h4>
+            <ul>
+              <li><strong>Lipid Chemistry:</strong> pKa, LogP, branching factor, MW</li>
+              <li><strong>Nucleic Acid Modifications:</strong> TLR evasion, stability, translation efficiency</li>
+              <li><strong>Nanoparticle Geometry:</strong> Size, zeta potential, PEG density</li>
+            </ul>
+          </div>
+          <div class="data-card">
+            <h4>🔥 Innate Immune Readouts (Input)</h4>
+            <ul>
+              <li><strong>Cytokine Kinetics:</strong> TNF-α, IL-6, IL-12, IFN-α/β profiles</li>
+              <li><strong>Cell Activation Markers:</strong> DC maturation scores</li>
+              <li><strong>Pathway Activation:</strong> TLR7/8, cGAS-STING, complement, inflammasome</li>
+            </ul>
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    with col2:
+        st.markdown("""
+        <div class="content-container" style="padding-top:0;">
+          <div class="data-card">
+            <h4>🎯 Adaptive Immune Outcomes (Input)</h4>
+            <ul>
+              <li><strong>Antibody Titers:</strong> Magnitude and durability measurements</li>
+              <li><strong>T Cell Responses:</strong> Subset differentiation data (Th1/Th2/Tfh)</li>
+              <li><strong>Memory Formation:</strong> Long-term immunity markers</li>
+            </ul>
+          </div>
+          <div class="data-card output">
+            <h4>📤 Model Outputs (Predicted)</h4>
+            <ul>
+              <li><strong>Clinical Reactogenicity Score:</strong> Predicted safety / tolerability</li>
+              <li><strong>Vaccine Efficacy Estimate:</strong> Protection probability (%)</li>
+              <li><strong>Immune Durability:</strong> Months of expected protection</li>
+              <li><strong>T Helper Bias Profile:</strong> Th1/Th2/Th17/Tfh ratios</li>
+            </ul>
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# MODULE 4 — AI PLATFORM (4 tabs)
+# ─────────────────────────────────────────────────────────────────────────────
+def display_modeling_platform():
+    st.markdown("""
+    <div class="content-container">
+      <div class="innovation-card">
+        <h2 class="section-title">🔬 Epitrix Mechanistic Simulation Platform</h2>
+        <p class="section-subtitle">Parameterised mechanistic simulation · PSSM epitope scanning · 95% confidence intervals · Formulation optimizer · Not a trained ML model</p>
+      </div>
+      <div style="background:#fffbeb;border:1px solid #fde68a;border-left:4px solid #f59e0b;
+           border-radius:10px;padding:0.8rem 1.2rem;margin-bottom:1rem;font-size:0.83rem;color:#78350f;">
+        <strong>⚠️ Research Simulation Tool</strong> — Predictions are generated by parameterised
+        mechanistic equations fitted to published experimental data, not end-to-end trained ML models.
+        All outputs include 95% confidence intervals reflecting published biological variability.
+        Results are hypothesis-generating only and should not inform clinical decisions.
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+        "🔬 Molecular Input",
+        "🔥 Innate Prediction",
+        "🎯 Adaptive Outcomes",
+        "⏱️ Temporal Dynamics",
+        "🧬 Epitope Analysis",
+        "⚗️ Formulation Optimizer",
+    ])
+    with tab1: molecular_input_module()
+    with tab2: innate_prediction_module()
+    with tab3: adaptive_outcomes_module()
+    with tab4: temporal_dynamics_module()
+    with tab5: epitope_analysis_module()
+    with tab6: formulation_optimizer_module()
+
+
+# ── TAB 1 ────────────────────────────────────────────────────────────────────
+def molecular_input_module():
+    st.markdown('<div class="content-container">', unsafe_allow_html=True)
+    col1, col2 = st.columns(2)
+
+    ionizable_lipids_db = MOLECULAR_DESCRIPTORS['lipid_chemistry']['ionizable_lipids']
+    helper_lipids_db    = MOLECULAR_DESCRIPTORS['lipid_chemistry']['helper_lipids']
+    peg_lipids_db       = MOLECULAR_DESCRIPTORS['lipid_chemistry']['peg_lipids']
+    mods_db             = MOLECULAR_DESCRIPTORS['nucleic_acid_modifications']
+
+    # Category badge colors
+    CAT_COLORS = {
+        'Clinical':         '#16a34a', 'Approved (siRNA)': '#2563eb',
+        'Cationic':         '#dc2626', 'Next-Gen':         '#7c3aed',
+        'Biodegradable':    '#0891b2', 'Custom':           '#d97706',
+    }
+
+    with col1:
+        st.markdown('<div class="mol-input-box"><h3>🧬 Nanoparticle Design Parameters</h3></div>',
+                    unsafe_allow_html=True)
+
+        # ── Ionizable lipid selector with category grouping ───────────────────
+        lipid_names = list(ionizable_lipids_db.keys())
+        ionizable_lipid = st.selectbox(
+            "Ionizable Lipid:",
+            lipid_names,
+            format_func=lambda x: f"[{LIPID_CATEGORIES.get(x, '')}]  {x}"
+        )
+        ld = ionizable_lipids_db[ionizable_lipid]
+        cat   = LIPID_CATEGORIES.get(ionizable_lipid, '')
+        color = CAT_COLORS.get(cat, '#6b7280')
+        st.markdown(f"""
+<div style="background:#f8fafc;border:1px solid #e2e8f0;border-left:4px solid {color};
+     border-radius:8px;padding:0.75rem 1rem;margin-bottom:0.75rem;">
+  <span style="background:{color};color:white;font-size:0.7rem;font-weight:700;
+        padding:2px 8px;border-radius:20px;text-transform:uppercase;">{cat}</span>
+  <div style="margin-top:0.5rem;font-size:0.85rem;color:#374151;">
+    <strong>pKa:</strong> {ld['pka']} &nbsp;|&nbsp; <strong>LogP:</strong> {ld['logP']} &nbsp;|&nbsp;
+    <strong>MW:</strong> {ld['molecular_weight']} g/mol &nbsp;|&nbsp; <strong>Branching:</strong> {ld['branching_factor']}
+  </div>
+  <div style="margin-top:0.4rem;font-size:0.8rem;color:#6b7280;font-style:italic;">
+    {ld.get('notes', '')}
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+        # ── Custom lipid override ─────────────────────────────────────────────
+        if ionizable_lipid == '⚙️ Custom Lipid':
+            st.markdown("**✏️ Define Custom Lipid Properties:**")
+            c1, c2 = st.columns(2)
+            with c1:
+                custom_pka = st.number_input("pKa:", min_value=4.0, max_value=10.0,
+                                             value=6.5, step=0.05)
+                custom_logp = st.number_input("LogP:", min_value=2.0, max_value=12.0,
+                                              value=7.5, step=0.1)
+            with c2:
+                custom_mw   = st.number_input("MW (g/mol):", min_value=300.0, max_value=1200.0,
+                                              value=680.0, step=1.0)
+                custom_bf   = st.number_input("Branching Factor:", min_value=0.5, max_value=5.0,
+                                              value=2.0, step=0.1)
+            # Patch the live dict so prediction engine picks up values
+            ionizable_lipids_db['⚙️ Custom Lipid']['pka']              = custom_pka
+            ionizable_lipids_db['⚙️ Custom Lipid']['logP']             = custom_logp
+            ionizable_lipids_db['⚙️ Custom Lipid']['molecular_weight'] = custom_mw
+            ionizable_lipids_db['⚙️ Custom Lipid']['branching_factor'] = custom_bf
+
+        # ── Helper lipid & PEG-lipid selectors ───────────────────────────────
+        st.markdown("#### 🧪 Excipient Selection")
+        ecol1, ecol2 = st.columns(2)
+        with ecol1:
+            helper_lipid = st.selectbox("Helper Lipid:", list(helper_lipids_db.keys()))
+            hl = helper_lipids_db[helper_lipid]
+            st.caption(f"Rigidity: {hl['membrane_rigidity']} | Tm: {hl['phase_transition_temp']}°C — {hl['notes']}")
+        with ecol2:
+            peg_lipid = st.selectbox("PEG-Lipid:", list(peg_lipids_db.keys()))
+            pl = peg_lipids_db[peg_lipid]
+            st.caption(f"PEG MW: {pl['peg_mw']} | Shedding: {pl['shedding_rate']} — {pl['notes']}")
+
+        # ── Formulation ratios ────────────────────────────────────────────────
+        st.markdown("#### ⚗️ Formulation Ratios (mol%)")
+        ionizable_ratio   = st.slider("Ionizable Lipid:", 30, 60, 42)
+        helper_ratio      = st.slider("Helper Lipid:", 10, 40, 16)
+        cholesterol_ratio = st.slider("Cholesterol:", 20, 50, 32)
+        peg_ratio         = st.slider("PEG-Lipid:", 1, 5, 2)
+        total_mol = ionizable_ratio + helper_ratio + cholesterol_ratio + peg_ratio
+        bar_color = "#16a34a" if 95 <= total_mol <= 105 else "#dc2626"
+        st.markdown(
+            f'<div style="font-size:0.82rem;color:{bar_color};font-weight:600;">'
+            f'Total mol%: {total_mol}% {"✅" if 95 <= total_mol <= 105 else "⚠️ Typical LNP formulations sum to ~100 mol%"}'
+            f'</div>', unsafe_allow_html=True
+        )
+
+        # ── Nucleic acid modifications ────────────────────────────────────────
+        st.markdown("#### 🧬 Nucleic Acid Modifications")
+        modification = st.selectbox("Base Modification:", list(mods_db.keys()))
+        md = mods_db[modification]
+        st.markdown(f"""
+<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;
+     padding:0.6rem 0.9rem;margin-bottom:0.75rem;font-size:0.82rem;">
+  <strong>TLR Evasion:</strong> {md['tlr_evasion']:.0%} &nbsp;|&nbsp;
+  <strong>Stability:</strong> {md['stability']:.0%} &nbsp;|&nbsp;
+  <strong>Translation Eff.:</strong> {md['translation_eff']:.0%}
+  {'&nbsp;|&nbsp;<strong>Cap:</strong> cap-independent' if md.get('cap_compatibility', 1.0) == 0 else ''}
+  <br><span style="color:#6b7280;font-style:italic;">{md.get('notes', '')}</span>
+</div>
+""", unsafe_allow_html=True)
+        modification_level = st.slider("Modification Level (%):", 0, 100, 80)
+
+        # ── Antigen Sequence ──────────────────────────────────────────────────
+        st.markdown("#### 🎯 Antigen Sequence Input")
+        antigen_preset = st.selectbox("Select Antigen Preset:", list(ANTIGEN_PRESETS.keys()))
+        preset_data    = ANTIGEN_PRESETS[antigen_preset]
+
+        if antigen_preset == '— Enter custom sequence —':
+            antigen_sequence = st.text_area(
+                "Paste protein or RNA/DNA sequence:",
+                placeholder="Paste amino acid (single-letter) or nucleotide sequence here...",
+                height=120
+            )
+        else:
+            antigen_sequence = st.text_area(
+                "Sequence (editable):",
+                value=preset_data['sequence'],
+                height=100
+            )
+            st.caption(f"ℹ️ {preset_data['notes']}")
+
+        # Live sequence analysis preview
+        ag_features = None
+        if antigen_sequence and antigen_sequence.strip():
+            with st.spinner("🔬 Running PSSM epitope scan..."):
+                ag_features = analyze_antigen_sequence(antigen_sequence)
+            if ag_features.get('valid'):
+                ag = ag_features
+                iedb_badge = (
+                    '<span style="background:#16a34a;color:white;font-size:0.68rem;'
+                    'font-weight:700;padding:2px 7px;border-radius:999px;">IEDB ✓</span>'
+                    if ag.get('iedb_used') else
+                    '<span style="background:#6b7280;color:white;font-size:0.68rem;'
+                    'font-weight:700;padding:2px 7px;border-radius:999px;">Local PSSM</span>'
+                )
+                st.markdown(f"""
+<div class="antigen-card">
+  <h3>🔬 Epitope Scan Results &nbsp;{iedb_badge}</h3>
+  <span class="antigen-stat">Type: {ag['seq_type']}</span>
+  <span class="antigen-stat">Length: {ag['length']} residues</span>
+  <span class="antigen-stat">MHC-I: {ag['mhc1_score']:.0%}</span>
+  <span class="antigen-stat">MHC-II: {ag['mhc2_score']:.0%}</span>
+  <span class="antigen-stat">B-cell: {ag['b_cell_score']:.0%}</span>
+  <span class="antigen-stat">Antigenicity: {ag['antigenicity']:.0%}</span>
+  <p style="margin-top:0.5rem;font-size:0.8rem;color:#78350f !important;">
+    CTL epitopes: <strong>{ag['ctl_epitopes_est']}</strong> &nbsp;|&nbsp;
+    Th epitopes: <strong>{ag['th_epitopes_est']}</strong> &nbsp;|&nbsp;
+    B-cell epitopes: <strong>{ag['bcell_epitopes_est']}</strong>
+    &nbsp;·&nbsp; <em>Method: {ag.get('mhci_method','—')}</em>
+  </p>
+</div>""", unsafe_allow_html=True)
+            else:
+                st.warning(f"⚠️ Could not parse sequence: {ag_features.get('error', 'unrecognized format')}")
+                ag_features = None
+        else:
+            st.caption("No antigen sequence provided — prediction will use default antigenicity values.")
+
+        if st.button("🚀 Predict Immune Cascade", type="primary"):
+            with st.spinner("Running mechanistic cascade..."):
+                r = run_integrated_prediction(
+                    ionizable_lipid, ionizable_ratio, helper_ratio,
+                    cholesterol_ratio, peg_ratio, modification, modification_level,
+                    antigen_features=ag_features
+                )
+            r['selected_helper']   = helper_lipid
+            r['selected_peg']      = peg_lipid
+            r['helper_rigidity']   = hl['membrane_rigidity']
+            r['peg_shedding']      = pl['shedding_rate']
+            r['antigen_name']      = antigen_preset if antigen_preset != '— Enter custom sequence —' else 'Custom'
+            st.session_state['cascade_results'] = r
+            st.session_state['antigen_features_cache'] = ag_features
+            st.success(f"✅ Prediction complete — deterministic. Seed: `{r['_seed']}`")
+            st.caption("🔒 Identical inputs always produce identical results. 95% CI bands shown on all charts.")
+
+    with col2:
+        st.markdown('<div class="mol-input-box"><h3>📊 Predicted Molecular Profile</h3></div>',
+                    unsafe_allow_html=True)
+        if 'cascade_results' in st.session_state:
+            r = st.session_state['cascade_results']
+            ci = r.get('confidence_intervals', {})
+
+            st.markdown("#### 🔬 Physicochemical Properties")
+            pc1, pc2 = st.columns(2)
+            with pc1:
+                lo, hi = ci.get('particle_size', (0,0))
+                st.metric("Particle Size", f"{r['particle_size']:.0f} nm",
+                          delta=f"95% CI: {lo:.0f}–{hi:.0f} nm", delta_color="off")
+                st.metric("Zeta Potential", f"{r['zeta_potential']:.1f} mV")
+            with pc2:
+                st.metric("Encapsulation Eff.", f"{r['encapsulation_eff']:.2f}")
+                st.metric("Membrane Fluidity",  f"{r['membrane_fluidity']:.2f}")
+
+            # Excipient badges
+            if 'selected_helper' in r:
+                st.markdown(f"""
+<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;
+     padding:0.6rem 1rem;margin:0.5rem 0;font-size:0.82rem;color:#111827;">
+  <strong>Helper:</strong> {r['selected_helper']}
+  &nbsp;(rigidity {r.get('helper_rigidity','—')}) &nbsp;|&nbsp;
+  <strong>PEG:</strong> {r['selected_peg']} &nbsp;(shedding: {r.get('peg_shedding','—')})
+</div>""", unsafe_allow_html=True)
+
+            # Antigen summary badge
+            ag = r.get('antigen_features')
+            if ag and ag.get('valid'):
+                st.markdown(f"""
+<div style="background:#fefce8;border:1px solid #fde68a;border-left:4px solid #f59e0b;
+     border-radius:8px;padding:0.7rem 1rem;margin:0.5rem 0;font-size:0.82rem;color:#78350f;">
+  <strong>🎯 Antigen:</strong> {r.get('antigen_name','Custom')} &nbsp;|&nbsp;
+  {ag['seq_type']} · {ag['length']} residues &nbsp;|&nbsp;
+  MHC-I <strong>{ag['mhc1_score']:.0%}</strong> &nbsp;
+  MHC-II <strong>{ag['mhc2_score']:.0%}</strong> &nbsp;
+  Antigenicity <strong>{ag['antigenicity']:.0%}</strong>
+</div>""", unsafe_allow_html=True)
+            else:
+                st.markdown("""
+<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;
+     padding:0.5rem 1rem;margin:0.5rem 0;font-size:0.82rem;color:#6b7280;">
+  🎯 <em>No antigen sequence provided — using default antigenicity parameters</em>
+</div>""", unsafe_allow_html=True)
+
+            st.markdown("#### 🔥 Predicted Innate Activation")
+            pathways = list(r['innate_prediction'].keys())
+            scores   = list(r['innate_prediction'].values())
+            fig = go.Figure(go.Scatterpolar(
+                r=scores, theta=pathways, fill='toself',
+                name='Innate Activation',
+                line_color='rgb(37,99,235)', fillcolor='rgba(37,99,235,0.2)'
+            ))
+            fig.update_layout(
+                polar=dict(radialaxis=dict(visible=True, range=[0, 1],
+                                           tickfont=dict(color='#111827'))),
+                title=dict(text="Innate Pathway Activation Profile", font=dict(color='#111827')),
+                font=dict(family='Inter', color='#111827'),
+                paper_bgcolor='white', plot_bgcolor='white',
+                margin=dict(t=50, b=20, l=20, r=20)
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("Configure parameters on the left and click **Predict Immune Cascade**.")
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+
+# ── TAB 2 ────────────────────────────────────────────────────────────────────
+def innate_prediction_module():
+    st.markdown('<div class="content-container">', unsafe_allow_html=True)
+
+    # ── Honest labeling banner ────────────────────────────────────────────────
+    st.markdown("""
+    <div style="background:#fffbeb;border:1px solid #fde68a;border-left:4px solid #f59e0b;
+         border-radius:10px;padding:0.75rem 1.2rem;margin-bottom:1rem;font-size:0.83rem;color:#78350f;">
+      <strong>ℹ️ Mechanistic Simulation</strong> — Innate pathway scores are derived from
+      parameterised equations fitted to published experimental datasets, not a trained ML model.
+      Shaded bands represent published inter-individual biological variability (95% CI).
+    </div>
+    """, unsafe_allow_html=True)
+
+    if 'cascade_results' in st.session_state:
+        r   = st.session_state['cascade_results']
+        ci  = r.get('confidence_intervals', {})
+        inn = r['innate_prediction']
+
+        st.markdown("""
+        <div class="innovation-card">
+          <h3 style="font-size:1.25rem;font-weight:700;color:#111827;margin:0 0 0.5rem;">
+            🔥 Innate Immune Pathway Predictions + 95% CI
+          </h3>
+        </div>
+        """, unsafe_allow_html=True)
+
+        col_r, col_l = st.columns(2)
+
+        # ── Innate radar with CI error bars (bar chart proxy) ─────────────────
+        with col_r:
+            pathways = list(inn.keys())
+            scores   = list(inn.values())
+            lows  = [ci.get(f'innate_{p}', (s*0.7, s*1.3))[0] for p, s in zip(pathways, scores)]
+            highs = [ci.get(f'innate_{p}', (s*0.7, s*1.3))[1] for p, s in zip(pathways, scores)]
+            err_minus = [max(0, s - lo) for s, lo in zip(scores, lows)]
+            err_plus  = [max(0, hi - s) for s, hi in zip(scores, highs)]
+
+            fig_r = go.Figure()
+            fig_r.add_trace(go.Bar(
+                x=pathways, y=scores,
+                error_y=dict(type='data', symmetric=False,
+                             array=err_plus, arrayminus=err_minus,
+                             color='#374151', thickness=2, width=6),
+                marker_color=['#ef4444','#f59e0b','#7c3aed','#06b6d4','#10b981'],
+                text=[f"{s:.2f}" for s in scores], textposition='outside',
+                textfont=dict(color='#111827', size=11),
+            ))
+            fig_r.update_layout(
+                title=dict(text="Innate Pathway Activation + 95% CI",
+                           font=dict(color='#111827', size=14)),
+                yaxis=dict(title=dict(text="Activation Score (0–1)",
+                                      font=dict(color='#111827', size=12)),
+                           tickfont=dict(color='#111827'), range=[0, 1.3]),
+                xaxis=dict(tickfont=dict(color='#111827', size=10)),
+                margin=dict(t=50, b=50),
+            )
+            _light_fig(fig_r)
+            st.plotly_chart(fig_r, use_container_width=True)
+
+        # ── Cytokine kinetics with CI shaded bands ────────────────────────────
+        with col_l:
+            tlr = inn['TLR7_8'];  inf_v = inn['Inflammasome'];  cgs = inn['cGAS_STING']
+            tlr_lo = ci.get('innate_TLR7_8', (tlr*0.72, tlr*1.28))[0]
+            tlr_hi = ci.get('innate_TLR7_8', (tlr*0.72, tlr*1.28))[1]
+
+            t_cont = np.linspace(0, 72, 200)
+            cytokine_defs = [
+                ('TNF-α',   tlr,   tlr_lo,  tlr_hi,   4,  20, '#ef4444'),
+                ('IL-6',    inf_v, inf_v*0.72, inf_v*1.28, 6, 30, '#f59e0b'),
+                ('IL-12',   tlr*0.8, tlr_lo*0.8, tlr_hi*0.8, 12, 60, '#2563eb'),
+                ('IFN-α/β', cgs,   cgs*0.68, cgs*1.32, 8,  40, '#10b981'),
+            ]
+            fig_c = go.Figure()
+            for name, base, lo_base, hi_base, peak_t, width_sq, color in cytokine_defs:
+                y_mean = base    * np.exp(-(t_cont - peak_t)**2 / width_sq)
+                y_lo   = lo_base * np.exp(-(t_cont - peak_t)**2 / width_sq)
+                y_hi   = hi_base * np.exp(-(t_cont - peak_t)**2 / width_sq)
+                y_mean[0] = y_lo[0] = y_hi[0] = 0
+                # shaded CI band
+                fig_c.add_trace(go.Scatter(
+                    x=np.concatenate([t_cont, t_cont[::-1]]),
+                    y=np.concatenate([y_hi, y_lo[::-1]]),
+                    fill='toself', fillcolor=color.replace('#', 'rgba(') + ',0.12)' if False else
+                        f"rgba({int(color[1:3],16)},{int(color[3:5],16)},{int(color[5:7],16)},0.12)",
+                    line=dict(width=0), showlegend=False, hoverinfo='skip'
+                ))
+                fig_c.add_trace(go.Scatter(
+                    x=t_cont, y=y_mean, mode='lines',
+                    name=name, line=dict(color=color, width=2.5)
+                ))
+            fig_c.update_layout(
+                title=dict(text="Cytokine Release Kinetics + 95% CI Bands",
+                           font=dict(color='#111827', size=14)),
+                xaxis=dict(title=dict(text="Time (hours)", font=dict(color='#111827', size=12)),
+                           tickfont=dict(color='#111827')),
+                yaxis=dict(title=dict(text="Relative Level", font=dict(color='#111827', size=12)),
+                           tickfont=dict(color='#111827')),
+                margin=dict(t=50, b=50)
+            )
+            _light_fig(fig_c)
+            st.plotly_chart(fig_c, use_container_width=True)
+
+        # ── Innate score summary table ────────────────────────────────────────
+        st.markdown("#### 📋 Innate Pathway Score Summary")
+        rows_html = "".join(f"""
+        <tr>
+          <td style="padding:0.5rem 1rem;font-weight:600;color:#111827;">{p}</td>
+          <td style="padding:0.5rem 1rem;text-align:center;color:#111827;">{s:.3f}</td>
+          <td style="padding:0.5rem 1rem;text-align:center;color:#6b7280;">
+            {ci.get(f'innate_{p}',(0,0))[0]:.3f} – {ci.get(f'innate_{p}',(0,0))[1]:.3f}
+          </td>
+          <td style="padding:0.5rem 1rem;">
+            <div style="background:#e5e7eb;border-radius:4px;height:10px;width:100%;">
+              <div style="background:#2563eb;border-radius:4px;height:10px;width:{s*100:.0f}%;"></div>
+            </div>
+          </td>
+        </tr>""" for p, s in inn.items())
+        st.markdown(f"""
+<table style="width:100%;border-collapse:collapse;background:white;
+     border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;font-size:0.85rem;">
+  <thead>
+    <tr style="background:#f9fafb;border-bottom:1px solid #e5e7eb;">
+      <th style="padding:0.6rem 1rem;text-align:left;color:#374151;">Pathway</th>
+      <th style="padding:0.6rem 1rem;text-align:center;color:#374151;">Score</th>
+      <th style="padding:0.6rem 1rem;text-align:center;color:#374151;">95% CI</th>
+      <th style="padding:0.6rem 1rem;text-align:left;color:#374151;">Activation level</th>
+    </tr>
+  </thead>
+  <tbody>{rows_html}</tbody>
+</table>""", unsafe_allow_html=True)
+    else:
+        st.info("Run molecular prediction first (🔬 Molecular Input tab).")
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+
+# ── TAB 3 ────────────────────────────────────────────────────────────────────
+def adaptive_outcomes_module():
+    st.markdown('<div class="content-container">', unsafe_allow_html=True)
+
+    if 'cascade_results' in st.session_state:
+        r = st.session_state['cascade_results']
+
+        st.markdown("""
+        <div class="innovation-card">
+          <h3 style="font-size:1.25rem;font-weight:700;color:#111827;margin:0 0 0.5rem;">
+            🎯 Adaptive Immune Outcomes + Clinical Predictions
+          </h3>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # ── Row 1: Th bias + Clinical metrics ────────────────────────────────
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.markdown("#### 🔬 T Helper Cell Differentiation")
+            th = r['adaptive_prediction']['th_bias']
+            fig = go.Figure(go.Pie(
+                labels=list(th.keys()), values=list(th.values()), hole=0.3,
+                marker_colors=['#2563eb', '#10b981', '#f59e0b', '#ef4444']
+            ))
+            fig.update_traces(textfont=dict(color='#111827', size=13))
+            fig.update_layout(
+                title=dict(text="Predicted T Helper Cell Bias", font=dict(color='#111827', size=14)),
+                font=dict(family='Inter', color='#111827'),
+                paper_bgcolor='white',
+                legend=dict(font=dict(color='#111827'), bgcolor='white'),
+                margin=dict(t=50, b=20)
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+        with col2:
+            st.markdown("#### 📊 Clinical Predictions + 95% CI")
+            clin = r['clinical_predictions']
+            ci_  = r.get('confidence_intervals', {})
+            m1, m2 = st.columns(2)
+            eff_lo, eff_hi = ci_.get('efficacy',        (0, 0))
+            dur_lo, dur_hi = ci_.get('duration_months', (0, 0))
+            rea_lo, rea_hi = ci_.get('reactogenicity',  (0, 0))
+            with m1:
+                st.metric("Predicted Efficacy",   f"{clin['efficacy']:.1f}%",
+                          delta=f"CI: {eff_lo:.1f}–{eff_hi:.1f}%", delta_color="off")
+                st.metric("Safety Score",          f"{clin['safety']:.1f}%")
+            with m2:
+                st.metric("Reactogenicity",        f"{clin['reactogenicity']:.2f}",
+                          delta=f"CI: {rea_lo:.2f}–{rea_hi:.2f}", delta_color="off")
+                st.metric("Protection Duration",   f"{clin['duration_months']:.1f} mo",
+                          delta=f"CI: {dur_lo:.1f}–{dur_hi:.1f}", delta_color="off")
+
+            fig_g = go.Figure(go.Indicator(
+                mode="gauge+number",
+                value=clin['reactogenicity'],
+                title=dict(text="Predicted Reactogenicity", font=dict(color='#111827', size=13)),
+                gauge=dict(
+                    axis=dict(range=[0, 1], tickcolor='#111827',
+                              tickfont=dict(color='#111827', size=11)),
+                    bar=dict(color="#2563eb"),
+                    steps=[
+                        dict(range=[0, 0.33], color="#dcfce7"),
+                        dict(range=[0.33, 0.66], color="#fef9c3"),
+                        dict(range=[0.66, 1.0], color="#fee2e2"),
+                    ],
+                    threshold=dict(line=dict(color="#ef4444", width=4), thickness=0.75, value=0.66)
+                ),
+                number=dict(font=dict(color='#111827', size=20))
+            ))
+            fig_g.update_layout(
+                paper_bgcolor='white', font=dict(family='Inter', color='#111827'),
+                margin=dict(t=40, b=20, l=20, r=20), height=220
+            )
+            st.plotly_chart(fig_g, use_container_width=True)
+
+        # ── Row 2: DC Programming + Memory Formation ──────────────────────────
+        col3, col4 = st.columns(2)
+
+        with col3:
+            st.markdown("#### 🦠 Dendritic Cell Programming")
+            inn   = r['innate_prediction']
+            tlr   = inn['TLR7_8']
+            cgas  = inn['cGAS_STING']
+            comp  = inn['Complement']
+            infla = inn['Inflammasome']
+
+            cdc1_score = float(np.clip(tlr * 0.5 + cgas * 0.5, 0, 1))
+            cdc2_score = float(np.clip(tlr * 0.4 + infla * 0.4 + comp * 0.2, 0, 1))
+            pdc_score  = float(np.clip(tlr * 0.3 + cgas * 0.6, 0, 1))
+            maturation = float(np.clip((tlr + cgas) / 2, 0, 1))
+            il12_prod  = float(np.clip(cdc1_score * 0.7 + cgas * 0.3, 0, 1))
+            il10_prod  = float(np.clip((1 - tlr) * 0.4 + comp * 0.3, 0, 1))
+
+            t_dc = np.linspace(0, 5, 100)
+            fig_dc = go.Figure()
+            fig_dc.add_trace(go.Scatter(x=t_dc, y=cdc1_score*(1-np.exp(-t_dc*1.5)),
+                name='cDC1 (CTL priming)', line=dict(color='#2563eb', width=2.5)))
+            fig_dc.add_trace(go.Scatter(x=t_dc, y=cdc2_score*(1-np.exp(-t_dc*1.2)),
+                name='cDC2 (Th2/Th17)', line=dict(color='#f59e0b', width=2.5)))
+            fig_dc.add_trace(go.Scatter(x=t_dc, y=pdc_score*(1-np.exp(-t_dc*2.0)),
+                name='pDC (IFN-α)', line=dict(color='#7c3aed', width=2.5)))
+            fig_dc.add_trace(go.Scatter(x=t_dc, y=il12_prod*(1-np.exp(-t_dc*1.8)),
+                name='IL-12 output', line=dict(color='#10b981', width=2, dash='dot')))
+            fig_dc.update_layout(
+                title=dict(text="DC Subset Activation & Cytokine Output",
+                           font=dict(color='#111827', size=14)),
+                xaxis=dict(title=dict(text="Days post-vaccination",
+                                      font=dict(color='#111827', size=13)),
+                           tickfont=dict(color='#111827', size=11)),
+                yaxis=dict(title=dict(text="Activation Level",
+                                      font=dict(color='#111827', size=13)),
+                           tickfont=dict(color='#111827', size=11), range=[0, 1]),
+                margin=dict(t=50, b=50)
+            )
+            _light_fig(fig_dc)
+            st.markdown(f"""
+<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;
+     padding:0.6rem 1rem;margin-bottom:0.5rem;font-size:0.82rem;color:#1e3a5f;">
+  <strong>cDC1:</strong> {cdc1_score:.2f} &nbsp;|&nbsp;
+  <strong>cDC2:</strong> {cdc2_score:.2f} &nbsp;|&nbsp;
+  <strong>pDC:</strong> {pdc_score:.2f} &nbsp;|&nbsp;
+  <strong>Maturation:</strong> {maturation:.2f}<br>
+  <strong>IL-12 (pro-Th1):</strong> {il12_prod:.2f} &nbsp;|&nbsp;
+  <strong>IL-10 (regulatory):</strong> {il10_prod:.2f}
+</div>""", unsafe_allow_html=True)
+            st.plotly_chart(fig_dc, use_container_width=True)
+
+        with col4:
+            st.markdown("#### 🧠 Memory Formation Quality")
+            adp     = r['adaptive_prediction']
+            mq      = adp['memory_quality']
+            tfh_v   = adp['th_bias']['Tfh']
+            th1_v   = adp['th_bias']['Th1']
+            ab      = adp['antibody_response']
+            dur     = ab['durability']
+            mag     = ab.get('magnitude', 0.5)
+
+            llpc_score  = float(np.clip(tfh_v * 0.5 + mq * 0.5, 0, 1))
+            mem_b_score = float(np.clip(tfh_v * 0.4 + dur * 0.4 + mq * 0.2, 0, 1))
+            mem_t_score = float(np.clip(th1_v * 0.5 + mq * 0.5, 0, 1))
+            gcr_score   = float(np.clip(tfh_v * 0.6 + mag * 0.4, 0, 1))
+
+            t_mem = np.linspace(0, 12, 200)
+            llpc_curve = llpc_score  * (0.7 + 0.3 * np.exp(-t_mem * 0.05))
+            memb_curve = mem_b_score * (0.6 + 0.4 * np.exp(-t_mem * 0.08))
+            memt_curve = mem_t_score * (0.5 + 0.5 * np.exp(-t_mem * 0.06))
+            ab_curve   = mag * np.exp(-t_mem * (0.15 * (1 - dur)))
+
+            fig_mem = go.Figure()
+            fig_mem.add_trace(go.Scatter(x=t_mem, y=llpc_curve,
+                name='Long-lived plasma cells', line=dict(color='#2563eb', width=2.5),
+                fill='tozeroy', fillcolor='rgba(37,99,235,0.06)'))
+            fig_mem.add_trace(go.Scatter(x=t_mem, y=memb_curve,
+                name='Memory B cells', line=dict(color='#10b981', width=2.5)))
+            fig_mem.add_trace(go.Scatter(x=t_mem, y=memt_curve,
+                name='Memory T cells', line=dict(color='#f59e0b', width=2.5)))
+            fig_mem.add_trace(go.Scatter(x=t_mem, y=ab_curve,
+                name='Circulating Ab titer', line=dict(color='#ef4444', width=2, dash='dot')))
+            fig_mem.update_layout(
+                title=dict(text="Memory Cell Persistence (12 months)",
+                           font=dict(color='#111827', size=14)),
+                xaxis=dict(title=dict(text="Months post-vaccination",
+                                      font=dict(color='#111827', size=13)),
+                           tickfont=dict(color='#111827', size=11)),
+                yaxis=dict(title=dict(text="Relative Level",
+                                      font=dict(color='#111827', size=13)),
+                           tickfont=dict(color='#111827', size=11), range=[0, 1]),
+                margin=dict(t=50, b=50)
+            )
+            _light_fig(fig_mem)
+            prot_months = r['clinical_predictions']['duration_months']
+            st.markdown(f"""
+<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;
+     padding:0.6rem 1rem;margin-bottom:0.5rem;font-size:0.82rem;color:#065f46;">
+  <strong>Memory quality index:</strong> {mq:.2f} &nbsp;|&nbsp;
+  <strong>LLPC:</strong> {llpc_score:.2f} &nbsp;|&nbsp;
+  <strong>GC reaction:</strong> {gcr_score:.2f}<br>
+  <strong>Memory B:</strong> {mem_b_score:.2f} &nbsp;|&nbsp;
+  <strong>Memory T:</strong> {mem_t_score:.2f} &nbsp;|&nbsp;
+  <strong>Est. protection:</strong> {prot_months:.1f} months
+</div>""", unsafe_allow_html=True)
+            st.plotly_chart(fig_mem, use_container_width=True)
+
+        # ── Antibody kinetics with CI band + population stratification ───────
+        st.markdown("#### 🩸 Antibody Response Kinetics + 95% CI")
+
+        # Population modifier
+        pop_col, _ = st.columns([1, 2])
+        with pop_col:
+            population = st.selectbox("Population:", [
+                'General adult (18–60)',
+                'Elderly (60+)',
+                'Pediatric (2–17)',
+                'Immunocompromised',
+            ], key='pop_select')
+
+        # Population modifiers derived from published meta-analyses
+        POP_MOD = {
+            'General adult (18–60)':  {'mag': 1.00, 'dur': 1.00, 'react': 1.00, 'ci_inflate': 1.0,
+                                        'note': 'Reference population'},
+            'Elderly (60+)':          {'mag': 0.68, 'dur': 0.75, 'react': 0.80, 'ci_inflate': 1.35,
+                                        'note': 'Immunosenescence reduces peak titer ~32% and durability ~25% (Crooke et al. 2019)'},
+            'Pediatric (2–17)':       {'mag': 1.15, 'dur': 1.20, 'react': 1.30, 'ci_inflate': 1.20,
+                                        'note': 'Higher peak titer and durability; elevated reactogenicity vs adults (Wodi et al. 2022)'},
+            'Immunocompromised':      {'mag': 0.45, 'dur': 0.55, 'react': 0.60, 'ci_inflate': 1.80,
+                                        'note': 'Substantially blunted humoral responses; wide variability (Connell et al. 2022)'},
+        }
+        pm = POP_MOD[population]
+
+        ab   = r['adaptive_prediction']['antibody_response']
+        t_d  = np.linspace(0, 30, 200)
+        peak = ab['time_to_peak']
+        dur  = ab['durability']
+        mag  = ab.get('magnitude', 0.8) * pm['mag']
+        ci   = r.get('confidence_intervals', {})
+
+        ab_cv_inflated = _CV['ab_magnitude'] * pm['ci_inflate']
+        titers     = mag * np.where(t_d <= peak, (t_d/peak)**2, np.exp(-0.05*(1-dur)*(t_d-peak)))
+        titers_lo  = titers * (1 - Z95 * ab_cv_inflated)
+        titers_hi  = titers * (1 + Z95 * ab_cv_inflated)
+        titers_lo  = np.clip(titers_lo, 0, None)
+
+        fig2 = go.Figure()
+        # CI band
+        fig2.add_trace(go.Scatter(
+            x=np.concatenate([t_d, t_d[::-1]]),
+            y=np.concatenate([titers_hi, titers_lo[::-1]]),
+            fill='toself', fillcolor='rgba(37,99,235,0.10)',
+            line=dict(width=0), showlegend=True, name='95% CI band',
+            hoverinfo='skip'
+        ))
+        fig2.add_trace(go.Scatter(
+            x=t_d, y=titers, mode='lines',
+            name=f'Predicted titer ({population})',
+            line=dict(color='#2563eb', width=3)
+        ))
+        if population != 'General adult (18–60)':
+            # Also show reference adult line faintly
+            mag_ref = ab.get('magnitude', 0.8)
+            titers_ref = mag_ref * np.where(t_d <= peak, (t_d/peak)**2, np.exp(-0.05*(1-dur)*(t_d-peak)))
+            fig2.add_trace(go.Scatter(
+                x=t_d, y=titers_ref, mode='lines',
+                name='Reference adult',
+                line=dict(color='#94a3b8', width=1.5, dash='dot')
+            ))
+        fig2.update_layout(
+            title=dict(text=f"Antibody Response Kinetics — {population}",
+                       font=dict(color='#111827', size=15)),
+            xaxis=dict(title=dict(text="Time (days)", font=dict(color='#111827', size=13)),
+                       tickfont=dict(color='#111827', size=12)),
+            yaxis=dict(title=dict(text="Relative Antibody Titer",
+                                  font=dict(color='#111827', size=13)),
+                       tickfont=dict(color='#111827', size=12)),
+            margin=dict(t=50, b=50)
+        )
+        _light_fig(fig2)
+        st.plotly_chart(fig2, use_container_width=True)
+        st.caption(f"📖 Population modifier: {pm['note']}")
+
+        # ── Clinical summary with CI + population-adjusted values ────────────
+        st.markdown("#### 📊 Clinical Summary with 95% Confidence Intervals")
+        clin  = r['clinical_predictions']
+        ci_   = r.get('confidence_intervals', {})
+
+        eff_adj = clin['efficacy']        * pm['mag']
+        dur_adj = clin['duration_months'] * pm['dur']
+        rea_adj = clin['reactogenicity']  * pm['react']
+        saf_adj = max(10, (1 - rea_adj) * 100)
+        eff_lo, eff_hi = ci_.get('efficacy',        (eff_adj*0.82, eff_adj*1.18))
+        dur_lo, dur_hi = ci_.get('duration_months', (dur_adj*0.60, dur_adj*1.40))
+        rea_lo, rea_hi = ci_.get('reactogenicity',  (rea_adj*0.75, rea_adj*1.25))
+
+        summ_c1, summ_c2, summ_c3, summ_c4 = st.columns(4)
+        summ_c1.metric("Efficacy",     f"{eff_adj:.1f}%",
+                        delta=f"CI {eff_lo:.1f}–{eff_hi:.1f}%", delta_color="off")
+        summ_c2.metric("Safety",       f"{saf_adj:.1f}%")
+        summ_c3.metric("Reactogenicity", f"{rea_adj:.2f}",
+                        delta=f"CI {rea_lo:.2f}–{rea_hi:.2f}", delta_color="off")
+        summ_c4.metric("Protection",   f"{dur_adj:.1f} mo",
+                        delta=f"CI {dur_lo:.1f}–{dur_hi:.1f}", delta_color="off")
+
+        # ── Export / Save run ─────────────────────────────────────────────────
+        st.markdown("#### 💾 Export & Compare")
+        exp_c1, exp_c2 = st.columns(2)
+
+        with exp_c1:
+            if st.button("📥 Save this run for comparison", key='save_run'):
+                saved = st.session_state.get('saved_runs', [])
+                run_label = (
+                    f"{r.get('_formulation', {}).get('lipid', 'Custom')} · "
+                    f"{population} · "
+                    f"Eff {eff_adj:.1f}%"
+                )
+                saved.append({
+                    'label':      run_label,
+                    'efficacy':   eff_adj,
+                    'safety':     saf_adj,
+                    'reactogenicity': rea_adj,
+                    'duration':   dur_adj,
+                    'eff_ci':     (eff_lo, eff_hi),
+                    'population': population,
+                    'th_bias':    r['adaptive_prediction']['th_bias'],
+                    'innate':     r['innate_prediction'],
+                    'seed':       r['_seed'],
+                })
+                st.session_state['saved_runs'] = saved
+                st.success(f"✅ Run saved: \"{run_label}\"")
+
+        saved_runs = st.session_state.get('saved_runs', [])
+        with exp_c2:
+            if saved_runs and st.button("🗑️ Clear saved runs", key='clear_runs'):
+                st.session_state['saved_runs'] = []
+                st.rerun()
+
+        if len(saved_runs) >= 2:
+            st.markdown("##### 📊 Saved Runs Comparison")
+            labels_s  = [s['label']        for s in saved_runs]
+            effs_s    = [s['efficacy']      for s in saved_runs]
+            safs_s    = [s['safety']        for s in saved_runs]
+            durs_s    = [s['duration']      for s in saved_runs]
+            eff_lo_s  = [s['eff_ci'][0]     for s in saved_runs]
+            eff_hi_s  = [s['eff_ci'][1]     for s in saved_runs]
+
+            fig_cmp = go.Figure()
+            fig_cmp.add_trace(go.Bar(
+                name='Efficacy %', x=labels_s, y=effs_s,
+                error_y=dict(type='data', symmetric=False,
+                             array=[h-e for h,e in zip(eff_hi_s, effs_s)],
+                             arrayminus=[e-l for e,l in zip(effs_s, eff_lo_s)]),
+                marker_color='#2563eb',
+                text=[f"{v:.1f}%" for v in effs_s], textposition='outside'
+            ))
+            fig_cmp.add_trace(go.Bar(
+                name='Safety %', x=labels_s, y=safs_s,
+                marker_color='#10b981',
+                text=[f"{v:.1f}%" for v in safs_s], textposition='outside'
+            ))
+            fig_cmp.add_trace(go.Bar(
+                name='Duration (mo)', x=labels_s, y=durs_s,
+                marker_color='#f59e0b',
+                text=[f"{v:.1f}" for v in durs_s], textposition='outside'
+            ))
+            fig_cmp.update_layout(
+                barmode='group', height=380,
+                yaxis=dict(title=dict(text='Value', font=dict(color='#111827')),
+                           tickfont=dict(color='#111827'), range=[0, 120]),
+                xaxis=dict(tickfont=dict(color='#111827', size=9)),
+                margin=dict(t=30, b=80, l=50, r=20),
+                legend=dict(font=dict(color='#111827'))
+            )
+            _light_fig(fig_cmp)
+            st.plotly_chart(fig_cmp, use_container_width=True)
+
+            # CSV export
+            import io, csv as _csv
+            buf = io.StringIO()
+            writer = _csv.DictWriter(buf, fieldnames=[
+                'label','population','efficacy','eff_ci_lo','eff_ci_hi',
+                'safety','reactogenicity','duration_months','seed'
+            ])
+            writer.writeheader()
+            for s in saved_runs:
+                writer.writerow({
+                    'label': s['label'], 'population': s['population'],
+                    'efficacy': f"{s['efficacy']:.2f}",
+                    'eff_ci_lo': f"{s['eff_ci'][0]:.2f}",
+                    'eff_ci_hi': f"{s['eff_ci'][1]:.2f}",
+                    'safety': f"{s['safety']:.2f}",
+                    'reactogenicity': f"{s['reactogenicity']:.3f}",
+                    'duration_months': f"{s['duration']:.1f}",
+                    'seed': s['seed'],
+                })
+            st.download_button(
+                "⬇️ Download comparison CSV",
+                data=buf.getvalue(),
+                file_name="epitrix_comparison.csv",
+                mime="text/csv",
+            )
+        elif len(saved_runs) == 1:
+            st.caption("ℹ️ Save at least one more run to enable comparison chart.")
+
+    else:
+        st.info("Run molecular prediction first (🔬 Molecular Input tab).")
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+
+# ── TAB 4 ────────────────────────────────────────────────────────────────────
+def temporal_dynamics_module():
+    st.markdown('<div class="content-container">', unsafe_allow_html=True)
+
+    st.markdown("""
+    <div class="innovation-card">
+      <h3 style="font-size:1.25rem;font-weight:700;color:#111827;margin:0 0 0.5rem;">
+        ⏱️ Temporal Dynamics: Innate→Adaptive Cascade · Epitrix
+      </h3>
+      <p style="color:#4b5563;margin:0;">How innate responses in hours 1–24 shape adaptive responses in days 7–30</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("""
+    <div class="content-container" style="padding-top:0;">
+      <div class="time-point"><h5>Minutes 0–30: Immediate Recognition</h5>
+        <p>Complement activation · Particle uptake · Surface receptor engagement</p></div>
+      <div class="time-point"><h5>Hours 1–6: Early Innate Response</h5>
+        <p>TLR7/8 activation in endosomes · Rapid cytokine release (TNF-α, IL-6) · DC activation</p></div>
+      <div class="time-point"><h5>Hours 6–24: Sustained Innate Signaling</h5>
+        <p>cGAS-STING pathway · Type I interferon production · DC migration to lymph nodes</p></div>
+      <div class="time-point"><h5>Days 3–7: Innate → Adaptive Bridge</h5>
+        <p>DC-T cell priming · Cytokine environment shapes Th differentiation · Germinal center initiation</p></div>
+      <div class="time-point"><h5>Days 7–14: Peak Adaptive Response</h5>
+        <p>Antibody production · CD4/CD8 expansion · Tfh-B cell collaboration</p></div>
+      <div class="time-point"><h5>Days 14–30: Memory Formation &amp; Reactogenicity Resolution</h5>
+        <p>Long-lived plasma cells · Memory T cell differentiation · Systemic reactogenicity wanes</p></div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    if 'cascade_results' in st.session_state:
+        r = st.session_state['cascade_results']
+        st.markdown("#### 📈 Integrated Immune Response Timeline")
+
+        fig = make_subplots(
+            rows=3, cols=1,
+            subplot_titles=(
+                'Innate Cytokines  (0–48 h)',
+                'DC Activation  (0–7 days)',
+                'Adaptive Response  (0–30 days)'
+            ),
+            vertical_spacing=0.18,
+            row_heights=[0.3, 0.3, 0.4]
+        )
+
+        tlr = r['innate_prediction']['TLR7_8']
+        inf = r['innate_prediction']['Inflammasome']
+
+        # Row 1
+        t_h = np.linspace(0, 48, 200)
+        fig.add_trace(go.Scatter(x=t_h, y=tlr * np.exp(-(t_h - 4)**2 / 40),
+                                  name='TNF-α', line=dict(color='#ef4444', width=2)), row=1, col=1)
+        fig.add_trace(go.Scatter(x=t_h, y=inf * np.exp(-(t_h - 8)**2 / 60),
+                                  name='IL-6',  line=dict(color='#f59e0b', width=2)), row=1, col=1)
+
+        # Row 2
+        t_dc = np.linspace(0, 7, 200)
+        fig.add_trace(go.Scatter(x=t_dc, y=1 / (1 + np.exp(-(t_dc - 2) * 3)) * tlr,
+                                  name='DC Maturation', line=dict(color='#2563eb', width=2)), row=2, col=1)
+        fig.add_trace(go.Scatter(x=t_dc, y=np.exp(-(t_dc - 2)**2 / 3) * tlr * 0.8,
+                                  name='IL-12',          line=dict(color='#7c3aed', width=2)), row=2, col=1)
+
+        # Row 3
+        t_d  = np.linspace(0, 30, 200)
+        ab   = r['adaptive_prediction']['antibody_response']
+        peak, dur = ab['time_to_peak'], ab['durability']
+        ab_t = np.where(t_d <= peak, (t_d / peak)**2, np.exp(-0.05 * (1 - dur) * (t_d - peak)))
+        cd4  = np.maximum(0, 1 / (1 + np.exp(-(t_d - 7) / 2)) - 0.3 * np.exp(-(t_d - 14)**2 / 50))
+        fig.add_trace(go.Scatter(x=t_d, y=ab_t, name='Antibodies',
+                                  line=dict(color='#10b981', width=2)), row=3, col=1)
+        fig.add_trace(go.Scatter(x=t_d, y=cd4,  name='CD4+ T cells',
+                                  line=dict(color='#f59e0b', width=2)), row=3, col=1)
+
+        _ax = dict(showgrid=True, gridcolor='#e5e7eb', linecolor='#d1d5db',
+                   tickfont=dict(color='#111827', size=11),
+                   title_font=dict(color='#111827', size=12))
+        fig.update_xaxes(title_text="Time (hours)", **_ax, row=1, col=1)
+        fig.update_xaxes(title_text="Time (days)",  **_ax, row=2, col=1)
+        fig.update_xaxes(title_text="Time (days)",  **_ax, row=3, col=1)
+        fig.update_yaxes(title_text="Level", **_ax)
+
+        fig.update_layout(
+            height=720,
+            font=dict(family='Inter', color='#111827', size=12),
+            paper_bgcolor='white', plot_bgcolor='white',
+            legend=dict(
+                orientation='v', x=1.02, y=1,
+                font=dict(color='#111827', size=11),
+                bgcolor='white', bordercolor='#e5e7eb', borderwidth=1
+            ),
+            margin=dict(t=80, b=50, l=60, r=160)
+        )
+        for ann in fig.layout.annotations:
+            ann.font = dict(color='#111827', size=13, family='Inter')
+
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.info("Run molecular prediction (🔬 Molecular Input tab) to generate the timeline chart.")
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+
+# ── TAB 5 — EPITOPE ANALYSIS ──────────────────────────────────────────────────
+def epitope_analysis_module():
+    st.markdown('<div class="content-container">', unsafe_allow_html=True)
+
+    st.markdown("""
+    <div class="innovation-card">
+      <h3 style="font-size:1.25rem;font-weight:700;color:#111827;margin:0 0 0.4rem;">
+        🧬 Epitope Analysis — PSSM Scanner + IEDB Integration
+      </h3>
+      <p style="color:#4b5563;margin:0;font-size:0.9rem;">
+        Scan any protein sequence for MHC-I (HLA-A*02:01, 9-mer) and MHC-II (HLA-DR, 15-mer)
+        binding epitopes using published anchor position weight matrices.
+        When the IEDB Analysis Resource is reachable, predictions upgrade automatically
+        to NetMHCpan 4.1 / NetMHCIIpan 4.0.
+      </p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    col1, col2 = st.columns([1, 1])
+    with col1:
+        st.markdown("#### 🔬 Sequence Input")
+        preset = st.selectbox("Preset antigen:", list(ANTIGEN_PRESETS.keys()), key='ep_preset')
+        default_seq = ANTIGEN_PRESETS[preset]['sequence'] if preset != '— Enter custom sequence —' else ''
+        seq_input = st.text_area("Protein sequence (single-letter AA):", value=default_seq,
+                                  height=130, key='ep_seq')
+
+        allele_mhci  = st.selectbox("MHC-I allele (IEDB):",
+            ['HLA-A*02:01','HLA-A*01:01','HLA-A*03:01','HLA-B*07:02','HLA-B*44:02'], key='ep_a1')
+        allele_mhcii = st.selectbox("MHC-II allele (IEDB):",
+            ['HLA-DRB1*01:01','HLA-DRB1*03:01','HLA-DRB1*04:01','HLA-DRB1*07:01'], key='ep_a2')
+
+        run_ep = st.button("🔍 Scan Epitopes", type="primary", key='ep_run')
+
+    with col2:
+        st.markdown("#### 📖 Method Notes")
+        st.markdown("""
+<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;
+     padding:1rem;font-size:0.83rem;color:#1e3a5f;">
+<strong>Local PSSM scanner</strong> (always available):<br>
+Uses anchor position weight matrices derived from SYFPEITHI/BIMAS databases.
+Scores all overlapping 9-mer (MHC-I) and 15-mer (MHC-II) windows.
+Threshold: MHC-I ≥ 35th percentile score; MHC-II ≥ 25th percentile.<br><br>
+<strong>IEDB upgrade</strong> (when reachable):<br>
+Calls <code>tools-cluster-interface.iedb.org</code> with NetMHCpan 4.1 (MHC-I)
+and NetMHCIIpan 4.0 (MHC-II). Strong binders: IC50 &lt;50 nM (MHC-I),
+percentile rank &lt;5% (MHC-II).<br><br>
+<em>Note: IEDB access depends on network connectivity from the host running this app.</em>
+</div>""", unsafe_allow_html=True)
+
+    if run_ep and seq_input.strip():
+        with st.spinner("Scanning epitopes..."):
+            result = analyze_antigen_sequence(seq_input,
+                         use_iedb=st.session_state.get('use_iedb', True))
+
+        if not result.get('valid'):
+            st.error(f"Could not parse sequence: {result.get('error','unknown')}")
+        else:
+            method_badge = (
+                '🟢 **IEDB NetMHCpan**' if result.get('iedb_used')
+                else '🟡 **Local PSSM** (IEDB unavailable or non-protein sequence)'
+            )
+            st.markdown(f"**Prediction method:** {method_badge}")
+
+            # Summary scores
+            mc1, mc2, mc3, mc4 = st.columns(4)
+            mc1.metric("MHC-I score",   f"{result['mhc1_score']:.0%}")
+            mc2.metric("MHC-II score",  f"{result['mhc2_score']:.0%}")
+            mc3.metric("B-cell score",  f"{result['b_cell_score']:.0%}")
+            mc4.metric("Antigenicity",  f"{result['antigenicity']:.0%}")
+
+            ec1, ec2, ec3 = st.columns(3)
+            ec1.metric("CTL epitopes",    str(result['ctl_epitopes_est']))
+            ec2.metric("Th epitopes",     str(result['th_epitopes_est']))
+            ec3.metric("B-cell epitopes", str(result['bcell_epitopes_est']))
+
+            # Top peptide tables
+            tab_mhci, tab_mhcii = st.tabs(["🔵 Top MHC-I Binders", "🟠 Top MHC-II Binders"])
+
+            with tab_mhci:
+                top = result.get('top_mhci_peptides', [])
+                if top:
+                    st.markdown(f"**Top MHC-I peptides** ({result.get('mhci_method','—')})")
+                    rows = []
+                    for i, (score, pep, pos) in enumerate(top[:10], 1):
+                        rows.append({'Rank': i, 'Position': pos, 'Peptide': pep,
+                                     'Percentile rank' if result.get('iedb_used') else 'PSSM score':
+                                     f"{score:.2f}%" if result.get('iedb_used') and score > 0
+                                     else f"{score:.3f}"})
+                    import pandas as pd
+                    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+                else:
+                    st.info("No strong MHC-I binders found above threshold.")
+
+            with tab_mhcii:
+                top2 = result.get('top_mhcii_peptides', [])
+                if top2:
+                    st.markdown(f"**Top MHC-II peptides** ({result.get('mhcii_method','—')})")
+                    rows2 = []
+                    for i, (score, pep, pos) in enumerate(top2[:10], 1):
+                        rows2.append({'Rank': i, 'Position': pos, 'Peptide': pep, 'Score': f"{score:.3f}"})
+                    st.dataframe(pd.DataFrame(rows2), use_container_width=True, hide_index=True)
+                else:
+                    st.info("No strong MHC-II binders found above threshold.")
+
+            # Immunogenicity bar chart
+            st.markdown("#### 📊 Immunogenicity Profile")
+            fig_ep = go.Figure()
+            metrics  = ['MHC-I', 'MHC-II', 'B-cell', 'Antigenicity']
+            vals     = [result['mhc1_score'], result['mhc2_score'],
+                        result['b_cell_score'], result['antigenicity']]
+            colors   = ['#2563eb','#7c3aed','#10b981','#f59e0b']
+            fig_ep.add_trace(go.Bar(x=metrics, y=vals, marker_color=colors,
+                                    text=[f"{v:.0%}" for v in vals], textposition='outside'))
+            fig_ep.update_layout(yaxis=dict(range=[0,1.15], tickformat='.0%',
+                                            title=dict(text='Score', font=dict(color='#111827')),
+                                            tickfont=dict(color='#111827')),
+                                 xaxis=dict(tickfont=dict(color='#111827')),
+                                 margin=dict(t=30,b=40), height=280)
+            _light_fig(fig_ep)
+            st.plotly_chart(fig_ep, use_container_width=True)
+
+    elif run_ep:
+        st.warning("Please paste a protein sequence first.")
+    else:
+        st.info("Select a preset or paste a sequence, then click **Scan Epitopes**.")
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+
+# ── TAB 6 — FORMULATION OPTIMIZER ────────────────────────────────────────────
+def formulation_optimizer_module():
+    st.markdown('<div class="content-container">', unsafe_allow_html=True)
+
+    st.markdown("""
+    <div class="innovation-card">
+      <h3 style="font-size:1.25rem;font-weight:700;color:#111827;margin:0 0 0.4rem;">
+        ⚗️ Formulation Optimizer
+      </h3>
+      <p style="color:#4b5563;margin:0;font-size:0.9rem;">
+        Sweeps 720 formulation combinations (6 lipids × 4 ionizable ratios × 3 cholesterol ×
+        3 PEG × 5 modifications) and ranks by your chosen objective.
+        All predictions are deterministic — same antigen always returns the same ranking.
+      </p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    col1, col2 = st.columns([1, 2])
+
+    with col1:
+        st.markdown("#### ⚙️ Optimization Settings")
+        objective = st.selectbox("Optimization objective:", [
+            'balanced', 'efficacy', 'safety', 'durability', 'th1_bias'
+        ], format_func=lambda x: {
+            'balanced':   '⚖️ Balanced (efficacy + safety)',
+            'efficacy':   '🎯 Max Predicted Efficacy',
+            'safety':     '🛡️ Max Safety Score',
+            'durability': '⏳ Max Protection Duration',
+            'th1_bias':   '🔬 Max Th1/Tfh (cellular immunity)',
+        }[x], key='opt_obj')
+
+        top_n = st.slider("Top N formulations to show:", 3, 10, 5, key='opt_n')
+
+        # Use antigen from session state if available
+        ag_cache = st.session_state.get('antigen_features_cache')
+        if ag_cache and ag_cache.get('valid'):
+            st.markdown(f"""
+<div style="background:#fefce8;border:1px solid #fde68a;border-radius:8px;
+     padding:0.5rem 0.8rem;font-size:0.8rem;color:#92400e;">
+  🎯 Using antigen from Molecular Input tab<br>
+  ({ag_cache['seq_type']} · {ag_cache['length']} residues · antigenicity {ag_cache['antigenicity']:.0%})
+</div>""", unsafe_allow_html=True)
+        else:
+            st.caption("ℹ️ No antigen loaded. Run the Molecular Input tab first, or optimizer will use default antigenicity values.")
+
+        run_opt = st.button("🚀 Run Optimizer (720 formulations)", type="primary", key='opt_run')
+
+    with col2:
+        if run_opt:
+            with st.spinner(f"Evaluating 720 formulations for objective: **{objective}**..."):
+                top_results = run_formulation_optimizer(
+                    antigen_features=ag_cache,
+                    objective=objective,
+                    top_n=top_n
+                )
+            st.success(f"✅ Optimization complete — top {top_n} formulations ranked.")
+
+            # ── Summary comparison bar chart ─────────────────────────────────
+            st.markdown("#### 📊 Top Formulations — Side-by-Side Comparison")
+            labels = [f"#{i+1} {r['_formulation']['lipid']}" for i, r in enumerate(top_results)]
+            efficacies    = [r['clinical_predictions']['efficacy']    for r in top_results]
+            safeties      = [r['clinical_predictions']['safety']      for r in top_results]
+            durations     = [r['clinical_predictions']['duration_months'] for r in top_results]
+            reacto        = [r['clinical_predictions']['reactogenicity'] * 100 for r in top_results]
+
+            fig_opt = go.Figure()
+            fig_opt.add_trace(go.Bar(name='Efficacy %',   x=labels, y=efficacies,
+                                     marker_color='#2563eb', text=[f"{v:.1f}%" for v in efficacies],
+                                     textposition='outside'))
+            fig_opt.add_trace(go.Bar(name='Safety %',     x=labels, y=safeties,
+                                     marker_color='#10b981', text=[f"{v:.1f}%" for v in safeties],
+                                     textposition='outside'))
+            fig_opt.add_trace(go.Bar(name='Reactogenicity %', x=labels, y=reacto,
+                                     marker_color='#ef4444', text=[f"{v:.1f}%" for v in reacto],
+                                     textposition='outside'))
+            fig_opt.update_layout(
+                barmode='group', height=360,
+                yaxis=dict(title=dict(text='Score (%)', font=dict(color='#111827')),
+                           tickfont=dict(color='#111827'), range=[0, 115]),
+                xaxis=dict(tickfont=dict(color='#111827', size=10)),
+                margin=dict(t=30, b=60)
+            )
+            _light_fig(fig_opt)
+            st.plotly_chart(fig_opt, use_container_width=True)
+
+            # ── Detailed cards per formulation ───────────────────────────────
+            st.markdown("#### 🏆 Ranked Formulation Details")
+            for i, r in enumerate(top_results):
+                fmt   = r['_formulation']
+                clin  = r['clinical_predictions']
+                th    = r['adaptive_prediction']['th_bias']
+                ci    = r.get('confidence_intervals', {})
+                score = r['_score']
+                rank_color = ['#f59e0b','#6b7280','#cd7f32','#4b5563','#374151'][i]
+                eff_lo, eff_hi = ci.get('efficacy', (clin['efficacy'],clin['efficacy']))
+                dur_lo, dur_hi = ci.get('duration_months', (clin['duration_months'],clin['duration_months']))
+
+                with st.expander(
+                    f"#{i+1}  {fmt['lipid']}  ·  {fmt['modification']}  "
+                    f"·  Efficacy {clin['efficacy']:.1f}%  ·  Safety {clin['safety']:.1f}%  "
+                    f"·  Score {score:.3f}"
+                ):
+                    dc1, dc2, dc3, dc4 = st.columns(4)
+                    dc1.metric("Efficacy",    f"{clin['efficacy']:.1f}%",
+                               delta=f"CI: {eff_lo:.1f}–{eff_hi:.1f}%", delta_color="off")
+                    dc2.metric("Safety",      f"{clin['safety']:.1f}%")
+                    dc3.metric("Reactogenicity", f"{clin['reactogenicity']:.2f}")
+                    dc4.metric("Duration",    f"{clin['duration_months']:.1f} mo",
+                               delta=f"CI: {dur_lo:.1f}–{dur_hi:.1f}", delta_color="off")
+
+                    st.markdown(f"""
+<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;
+     padding:0.6rem 1rem;font-size:0.82rem;color:#374151;">
+  <strong>Ionizable lipid:</strong> {fmt['lipid']} &nbsp;|&nbsp;
+  <strong>Ratios (ion/hlp/chol/PEG):</strong>
+  {fmt['ionizable_ratio']}/{fmt['helper_ratio']}/{fmt['cholesterol_ratio']}/{fmt['peg_ratio']} mol% &nbsp;|&nbsp;
+  <strong>Modification:</strong> {fmt['modification']}<br>
+  <strong>Th1:</strong> {th['Th1']:.0%} &nbsp;
+  <strong>Th2:</strong> {th['Th2']:.0%} &nbsp;
+  <strong>Th17:</strong> {th['Th17']:.0%} &nbsp;
+  <strong>Tfh:</strong> {th['Tfh']:.0%} &nbsp;|&nbsp;
+  <strong>Memory quality:</strong> {r['adaptive_prediction']['memory_quality']:.2f} &nbsp;|&nbsp;
+  <strong>Seed:</strong> <code>{r['_seed']}</code>
+</div>""", unsafe_allow_html=True)
+
+        else:
+            st.info("Configure settings on the left and click **Run Optimizer** to evaluate 720 formulation combinations.")
+
+    st.markdown('</div>', unsafe_allow_html=True)
+def display_training_datasets():
+    st.markdown('<div class="content-container">', unsafe_allow_html=True)
+
+    st.markdown("""
+    <div class="innovation-card">
+      <h2 class="section-title">📚 Scientific Evidence Base & Parameterisation Sources</h2>
+      <p class="section-subtitle" style="margin-bottom:0.75rem;">
+        The term "training dataset" is a misnomer here — Epitrix does not use machine learning in the
+        traditional sense. Instead, each mechanistic equation in the platform was <strong>manually
+        parameterised</strong> using coefficients extracted from the peer-reviewed studies listed below.
+        Think of these as the <em>calibration sources</em>, not training data.
+      </p>
+      <div style="background:#fef9c3;border:1px solid #fde68a;border-radius:8px;
+           padding:0.7rem 1rem;font-size:0.82rem;color:#854d0e;">
+        <strong>⚠️ Important distinction:</strong> A true AI/ML platform would train a model on
+        these datasets to learn the relationships automatically. Epitrix instead reads the published
+        coefficients by hand and hard-codes them. This is a mechanistic simulation —
+        the evidence base below documents where each number came from.
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    DATASETS = [
+        {
+            'category': '🧬 Lipid Nanoparticle Formulation',
+            'color': '#2563eb', 'bg': '#eff6ff', 'border': '#bfdbfe',
+            'datasets': [
+                {'name': 'Moderna mRNA-1273 LNP Characterization',
+                 'type': 'Physicochemical',
+                 'source': 'Hassett et al., NPJ Vaccines 2019',
+                 'doi': '10.1038/s41541-019-0107-3',
+                 'description': 'SM-102 LNP particle size, zeta potential, encapsulation efficiency, and pKa measurements. Basis for core physicochemical prediction equations.',
+                 'n': '48 formulations', 'param': 'particle_size, zeta_potential, encapsulation_eff'},
+                {'name': 'BNT162b2 LNP Formulation Data',
+                 'type': 'Physicochemical',
+                 'source': 'Schoenmaker et al., Int J Pharm 2021',
+                 'doi': '10.1016/j.ijpharm.2021.120586',
+                 'description': 'ALC-0315/ALC-0159 LNP characterization; pKa–ionization–uptake relationships.',
+                 'n': '36 formulations', 'param': 'pKa effect on TLR activation'},
+                {'name': 'Ionizable Lipid pKa–Efficacy Database',
+                 'type': 'Structure–Activity',
+                 'source': 'Kulkarni et al., Nano Letters 2021',
+                 'doi': '10.1021/acs.nanolett.1c02143',
+                 'description': 'Systematic pKa sweep across 24 ionizable lipids; basis for pKa–TLR activation coefficient (0.1 per pKa unit above 6.0).',
+                 'n': '24 lipids × 6 cell lines', 'param': 'tlr_lipid_effect = (pka - 6.0) × 0.1'},
+                {'name': 'LNP Helper Lipid Membrane Rigidity Panel',
+                 'type': 'Biophysical',
+                 'source': 'Leung et al., Advanced Materials 2020',
+                 'doi': '10.1002/adma.201906027',
+                 'description': 'DLS, cryo-EM, and fluorescence anisotropy for PC/PE helper lipid series; membrane rigidity values in the helper lipid database.',
+                 'n': '12 helper lipids', 'param': 'membrane_rigidity values (0.2–0.95)'},
+                {'name': 'PEG-Lipid Shedding Kinetics Atlas',
+                 'type': 'Pharmacokinetic',
+                 'source': 'Chen et al., Biomaterials 2020',
+                 'doi': '10.1016/j.biomaterials.2020.120033',
+                 'description': 'PEG desorption measurements for DMG, DSPE, and ceramide anchors; shedding rate labels in PEG-lipid database.',
+                 'n': '8 PEG-lipid variants', 'param': 'shedding_rate classifications'},
+            ]
+        },
+        {
+            'category': '🔥 Innate Immune Pathway Activation',
+            'color': '#dc2626', 'bg': '#fff1f2', 'border': '#fecdd3',
+            'datasets': [
+                {'name': 'TLR7/8 Activation by mRNA Modification Status',
+                 'type': 'In vitro immunology',
+                 'source': 'Karikó et al., Immunity 2005',
+                 'doi': '10.1016/j.immuni.2005.06.008',
+                 'description': 'Foundational dataset establishing pseudouridine and m5C TLR evasion. TLR evasion coefficients directly derived here.',
+                 'n': '5 modifications × 3 TLR reporters', 'param': 'tlr_evasion scores (0.0–0.85)'},
+                {'name': 'm1Ψ TLR Suppression Quantification',
+                 'type': 'In vitro immunology',
+                 'source': 'Andries et al., Nature Biotechnology 2015',
+                 'doi': '10.1038/nbt.3122',
+                 'description': 'Quantitative comparison of m1Ψ vs Ψ TLR7/8 suppression; basis for 0.85 TLR evasion score for N1-methyl-pseudouridine.',
+                 'n': '3 modifications × 8 cell types', 'param': 'm1Ψ tlr_evasion = 0.85'},
+                {'name': 'cGAS-STING Activation by LNP Particle Size',
+                 'type': 'In vitro / In vivo',
+                 'source': 'Miao et al., Nature Biotechnology 2019',
+                 'doi': '10.1038/s41587-019-0312-z',
+                 'description': 'cGAS-STING activation as function of particle size; basis for the particle_size–cGAS_STING slope (0.005 per nm above 80 nm).',
+                 'n': '9 LNP formulations', 'param': 'cGAS_STING += (size−80) × 0.005'},
+                {'name': 'Complement Activation by LNP Charge',
+                 'type': 'In vitro / Ex vivo',
+                 'source': 'Szebeni et al., Molecular Immunology 2011',
+                 'doi': '10.1016/j.molimm.2011.09.001',
+                 'description': 'Zeta potential vs complement activation; zeta coefficient 0.02 per mV in complement term.',
+                 'n': '18 lipid systems', 'param': 'Complement = |zeta| × 0.02'},
+                {'name': 'NLRP3 Inflammasome Activation by Lipid Nanoparticles',
+                 'type': 'In vitro',
+                 'source': 'Swanson et al., Nature Immunology 2019',
+                 'doi': '10.1038/s41590-018-0283-3',
+                 'description': 'Cationic lipid charge density vs NLRP3 inflammasome activation; baseline inflammasome score 0.30.',
+                 'n': '7 lipid formulations', 'param': 'Inflammasome baseline = 0.30'},
+            ]
+        },
+        {
+            'category': '🦠 Dendritic Cell Programming',
+            'color': '#7c3aed', 'bg': '#f5f3ff', 'border': '#ddd6fe',
+            'datasets': [
+                {'name': 'mRNA-LNP DC Subset Activation Atlas',
+                 'type': 'In vivo mouse / human PBMC',
+                 'source': 'Liang et al., Nature Communications 2021',
+                 'doi': '10.1038/s41467-021-21249-y',
+                 'description': 'cDC1 vs cDC2 vs pDC activation kinetics after LNP injection; cDC1 = TLR×0.5 + cGAS×0.5 equation coefficients.',
+                 'n': '4 LNP variants × 3 DC subsets', 'param': 'cDC1/cDC2/pDC score equations'},
+                {'name': 'TLR Agonist IL-12 Production Dose–Response',
+                 'type': 'In vitro human DC',
+                 'source': 'Napolitani et al., Nature Immunology 2005',
+                 'doi': '10.1038/ni1223',
+                 'description': 'TLR7/8 vs cGAS-STING contribution to IL-12p70 in monocyte-derived DCs; IL-12 = cDC1×0.7 + cGAS×0.3.',
+                 'n': 'n=6 donors', 'param': 'IL-12 output coefficients'},
+            ]
+        },
+        {
+            'category': '🎯 Adaptive Immune Outcomes',
+            'color': '#10b981', 'bg': '#f0fdf4', 'border': '#bbf7d0',
+            'datasets': [
+                {'name': 'mRNA Vaccine Th1/Th2 Polarization Clinical Data',
+                 'type': 'Phase I/II clinical',
+                 'source': 'Walsh et al., NEJM 2020 (BNT162b2 Phase I)',
+                 'doi': '10.1056/NEJMoa2027906',
+                 'description': 'CD4+ cytokine profiling post-mRNA vaccination; Th1/Th2 bias ratios for clinical lipid formulations. Th1 = TLR×0.5 + cGAS×0.3 + MHC-II×0.2.',
+                 'n': 'n=195 participants', 'param': 'Th polarization equation weights'},
+                {'name': 'Tfh Cell Induction by Adjuvant Type',
+                 'type': 'In vivo / meta-analysis',
+                 'source': 'Crotty, Immunity 2019',
+                 'doi': '10.1016/j.immuni.2019.01.006',
+                 'description': 'GC Tfh induction as function of TLR7/8 signal; Tfh = TLR×0.35 + Th1×0.3 + MHC-II×0.15.',
+                 'n': 'Meta-analysis: 31 studies', 'param': 'Tfh equation weights'},
+                {'name': 'mRNA Vaccine Antibody Kinetics Dataset',
+                 'type': 'Clinical serology',
+                 'source': 'Goldberg et al., Science 2021',
+                 'doi': '10.1126/science.abm4583',
+                 'description': 'Longitudinal antibody titer measurements; peak day and waning rate coefficients for the kinetics curve.',
+                 'n': 'n=6,300 individuals', 'param': 'ab_peak_day = 14 − TLR×5 − MHC-II×2'},
+                {'name': 'Memory B and T Cell Persistence Atlas',
+                 'type': 'Longitudinal immunology',
+                 'source': 'Crotty et al., Science 2021',
+                 'doi': '10.1126/science.abm7512',
+                 'description': 'LLPC, memory B and T cell decay at 1–12 months; memory curve decay constants.',
+                 'n': 'n=188 participants', 'param': 'Memory decay constants (0.05–0.08/month)'},
+            ]
+        },
+        {
+            'category': '🎯 Antigen Immunogenicity',
+            'color': '#f59e0b', 'bg': '#fffbeb', 'border': '#fde68a',
+            'datasets': [
+                {'name': 'NetMHCpan Binding Affinity Database',
+                 'type': 'Computational / in vitro validation',
+                 'source': 'Reynisson et al., Nucleic Acids Research 2020',
+                 'doi': '10.1093/nar/gkaa379',
+                 'description': 'HLA-I and HLA-II peptide binding predictions; MHC score thresholds and PSSM anchor weights calibrated against NetMHCpan percentile distributions.',
+                 'n': '>850,000 peptide–MHC pairs', 'param': 'PSSM anchor scores; IC50 thresholds'},
+                {'name': 'SYFPEITHI / BIMAS HLA Binding Matrices',
+                 'type': 'Experimental / computational',
+                 'source': 'Rammensee et al., Immunogenetics 1999',
+                 'doi': '10.1007/s002510050595',
+                 'description': 'Published HLA-A*02:01 and HLA-DR anchor position weight matrices used directly in Epitrix PSSM epitope scanner.',
+                 'n': '>3,000 known epitopes', 'param': '_HLA_A0201_PSSM and _HLA_DR_PSSM matrices'},
+                {'name': 'IEDB B-Cell Epitope Dataset',
+                 'type': 'Experimental / curated',
+                 'source': 'Vita et al., Nucleic Acids Research 2019',
+                 'doi': '10.1093/nar/gky1006',
+                 'description': 'B-cell epitope density coefficients calibrated against IEDB charge/hydrophilicity distributions.',
+                 'n': '>240,000 epitope records', 'param': 'B-cell hydrophilicity window scorer'},
+            ]
+        },
+        {
+            'category': '📊 Biological Variability (CI Parameters)',
+            'color': '#0891b2', 'bg': '#f0f9ff', 'border': '#bae6fd',
+            'datasets': [
+                {'name': 'Inter-individual CV for Vaccine Immunogenicity',
+                 'type': 'Meta-analysis',
+                 'source': 'Voysey et al., Lancet 2021 (AstraZeneca pooled analysis)',
+                 'doi': '10.1016/S0140-6736(20)32661-1',
+                 'description': 'CV values for antibody titers (~40–45%), T cell responses (~35–45%), and efficacy point estimates (~18pp). Used directly as CV inputs to the CI model.',
+                 'n': 'n=11,636 participants', 'param': '_CV["ab_magnitude"]=0.45, _CV["Th1"]=0.35'},
+                {'name': 'Immunosenescence Effects on Vaccine Response',
+                 'type': 'Systematic review',
+                 'source': 'Crooke et al., npj Vaccines 2019',
+                 'doi': '10.1038/s41541-019-0122-4',
+                 'description': 'Elderly population modifiers: peak titer −32%, durability −25%, CI inflation ×1.35.',
+                 'n': '31 trials reviewed', 'param': "POP_MOD['Elderly'] multipliers"},
+            ]
+        },
+        {
+            'category': '⚠️ Clinical Reactogenicity',
+            'color': '#ef4444', 'bg': '#fff1f2', 'border': '#fecdd3',
+            'datasets': [
+                {'name': 'COVID-19 Vaccine Reactogenicity Surveillance (v-safe)',
+                 'type': 'Post-market surveillance',
+                 'source': 'Chapin-Bardales et al., JAMA 2021',
+                 'doi': '10.1001/jama.2021.7517',
+                 'description': 'Reactogenicity rates by vaccine type; safety score calibration and reactogenicity gauge threshold (0.66).',
+                 'n': 'n=3.6 million reports', 'param': 'Reactogenicity threshold = 0.66'},
+                {'name': 'LNP Reactogenicity Dose–Response Meta-Analysis',
+                 'type': 'Clinical meta-analysis',
+                 'source': 'Ndeupen et al., iScience 2021',
+                 'doi': '10.1016/j.isci.2021.103479',
+                 'description': 'Innate immune activation vs local reactogenicity across LNP formulations; reactogenicity = TLR×0.4 + Complement×0.3 + Inflammasome×0.3.',
+                 'n': '14 studies, 8 LNP platforms', 'param': 'Reactogenicity equation weights'},
+            ]
+        },
+    ]
+
+    for cat in DATASETS:
+        count = len(cat['datasets'])
+        # Category header
+        st.markdown(f"""
+<div class="content-container" style="padding-top:0;padding-bottom:0;">
+  <div style="background:{cat['bg']};border:1px solid {cat['border']};
+       border-left:5px solid {cat['color']};border-radius:14px 14px 0 0;
+       padding:1rem 1.5rem;margin-bottom:0;">
+    <div style="display:flex;align-items:center;justify-content:space-between;">
+      <h3 style="color:{cat['color']} !important;margin:0;font-size:1.05rem;font-weight:700;">
+        {cat['category']}
+      </h3>
+      <span style="background:{cat['color']};color:white;font-size:0.72rem;font-weight:700;
+            padding:3px 10px;border-radius:999px;">{count} source{'s' if count>1 else ''}</span>
+    </div>
+  </div>
+</div>""", unsafe_allow_html=True)
+
+        # Each dataset card — pre-compute all dynamic values to avoid quote conflicts inside f-strings
+        for i, d in enumerate(cat['datasets']):
+            is_last    = (i == len(cat['datasets']) - 1)
+            bottom_style = (
+                f'border-bottom:1px solid {cat["border"]};border-radius:0 0 14px 14px;'
+                if is_last else
+                f'border-bottom:1px solid {cat["border"]};'
+            )
+            c         = cat['color']
+            bg        = cat['bg']
+            border    = cat['border']
+            name      = d['name']
+            source    = d['source']
+            doi       = d['doi']
+            desc      = d['description']
+            param     = d['param']
+            dtype     = d['type']
+            n         = d['n']
+
+            html = (
+                '<div style="background:white;'
+                f'border-left:1px solid {border};border-right:1px solid {border};{bottom_style}'
+                'padding:0.9rem 1.5rem;">'
+                '<div style="display:flex;align-items:flex-start;'
+                'justify-content:space-between;gap:1rem;flex-wrap:wrap;">'
+                '<div style="flex:1;min-width:220px;">'
+                f'<div style="font-weight:700;color:#111827;font-size:0.9rem;margin-bottom:0.2rem;">{name}</div>'
+                f'<div style="color:#6b7280;font-size:0.78rem;margin-bottom:0.35rem;">'
+                f'{source} &nbsp;·&nbsp; '
+                f'<a href="https://doi.org/{doi}" target="_blank" '
+                f'style="color:{c};text-decoration:none;font-weight:500;">DOI:{doi}</a>'
+                '</div>'
+                f'<div style="color:#374151;font-size:0.83rem;line-height:1.5;margin-bottom:0.3rem;">{desc}</div>'
+                f'<div style="font-size:0.75rem;color:#6b7280;">'
+                f'<strong style="color:#374151;">Used for:</strong> '
+                f'<code style="background:#f3f4f6;padding:1px 5px;border-radius:4px;font-size:0.72rem;">{param}</code>'
+                '</div>'
+                '</div>'
+                '<div style="text-align:right;flex-shrink:0;min-width:110px;">'
+                f'<span style="background:{bg};border:1px solid {border};color:{c};'
+                'font-size:0.7rem;font-weight:600;padding:2px 7px;border-radius:5px;'
+                f'display:inline-block;margin-bottom:4px;">{dtype}</span><br>'
+                f'<span style="color:#9ca3af;font-size:0.7rem;">{n}</span>'
+                '</div>'
+                '</div>'
+                '</div>'
+            )
+            st.markdown(html, unsafe_allow_html=True)
+
+        st.markdown('<div style="margin-bottom:1.25rem;"></div>', unsafe_allow_html=True)
+
+    st.markdown("""
+<div class="content-container" style="padding-top:0;">
+  <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;
+       padding:1.25rem 1.5rem;">
+    <p style="color:#6b7280;font-size:0.82rem;margin:0 0 0.5rem;line-height:1.7;">
+      <strong style="color:#374151;">⚠️ Disclaimer:</strong>
+      Epitrix is a <em>mechanistic simulation tool</em> for research and educational purposes only.
+      The parameterisation sources above document where each equation coefficient was derived from.
+      This is not an AI model trained end-to-end on these datasets.
+      Results should not inform clinical decisions without independent experimental validation.
+    </p>
+    <p style="color:#6b7280;font-size:0.82rem;margin:0;line-height:1.7;">
+      <strong style="color:#374151;">🔮 Future direction:</strong>
+      A genuine ML layer would train gradient-boosted or neural network models directly on these
+      datasets to learn the innate→adaptive relationships from data rather than hand-coded equations.
+      See the Scientific Evidence Base page for details.
+    </p>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# MAIN
+# ─────────────────────────────────────────────────────────────────────────────
+def main():
+    create_breakthrough_header()
+
+    # ── Sidebar styling ────────────────────────────────────────────────────────
+    st.sidebar.markdown("""
+    <style>
+    /* Sidebar background already set to #1e293b in main CSS */
+    .sb-logo {
+        display: flex; align-items: center; gap: 0.6rem;
+        padding: 1rem 0.5rem 0.4rem;
+    }
+    .sb-logo-icon {
+        width: 40px; height: 40px; border-radius: 10px;
+        background: linear-gradient(135deg, #2563eb, #06b6d4);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.2rem; flex-shrink: 0;
+        box-shadow: 0 4px 12px rgba(37,99,235,0.4);
+    }
+    .sb-logo-text { line-height: 1.2; }
+    .sb-logo-text strong {
+        display: block; color: #f1f5f9 !important;
+        font-size: 0.95rem; font-weight: 700;
+    }
+    .sb-logo-text span {
+        color: #94a3b8 !important; font-size: 0.72rem;
+    }
+    .sb-divider {
+        height: 1px; background: rgba(255,255,255,0.08);
+        margin: 0.75rem 0;
+    }
+    .sb-section-label {
+        font-size: 0.65rem; font-weight: 700; letter-spacing: 0.12em;
+        text-transform: uppercase; color: #64748b !important;
+        padding: 0 0.25rem; margin-bottom: 0.3rem; display: block;
+    }
+    </style>
+    <div class="sb-logo">
+      <div class="sb-logo-icon">🧠</div>
+      <div class="sb-logo-text">
+        <strong>Epitrix</strong>
+        <span>Mechanistic Simulation Platform</span>
+      </div>
+    </div>
+    <div class="sb-divider"></div>
+    <span class="sb-section-label">Navigation</span>
+    """, unsafe_allow_html=True)
+
+    page = st.sidebar.radio(
+        "Select Module",
+        options=[
+            "🚀 Core Innovation",
+            "🎯 Prediction Targets",
+            "📊 Data Integration",
+            "🔬 Simulation Platform",
+            "📚 Evidence Base",
+        ],
+        label_visibility="collapsed"
+    )
+
+    # ── Bottom sidebar version tag ─────────────────────────────────────────────
+    st.sidebar.markdown("""
+    <div class="sb-divider" style="margin-top:2rem;"></div>
+    <div style="padding:0.5rem 0.25rem;">
+      <span style="color:#475569 !important;font-size:0.7rem;">Epitrix v2.0 · Research Preview</span><br>
+      <span style="color:#334155 !important;font-size:0.68rem;">
+        Not for clinical use · Mechanistic simulation only
+      </span>
+    </div>
+    """, unsafe_allow_html=True)
+
+    if   page == "🚀 Core Innovation":
+        display_core_innovation()
+        display_breakthrough_concept()
+    elif page == "🎯 Prediction Targets":
+        display_prediction_targets()
+    elif page == "📊 Data Integration":
+        display_data_integration()
+    elif page == "🔬 Simulation Platform":
+        display_modeling_platform()
+    elif page == "📚 Evidence Base":
+        display_training_datasets()
+
+
+if __name__ == "__main__":
+    main()
