@@ -1,0 +1,19 @@
+# Raw data — too large for GitHub
+data/
+
+# Python virtual environment
+venv/
+
+# Training results and plots
+results/
+
+# Legacy model location
+models/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Mac
+.DS_Store
