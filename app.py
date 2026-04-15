@@ -518,6 +518,582 @@ MOLECULAR_DESCRIPTORS = {
 import requests as _requests
 import json as _json
 
+# ─────────────────────────────────────────────────────────────────────────────
+# ADJUVANT DATABASE
+# Each entry encodes:
+#   pathway_activates : dict  — binary flags (True/False) per pathway
+#   pathway_strength  : dict  — ordinal (none/low/moderate/high/very_high)
+#   scores            : dict  — mapped 0-1 values (none=0, low=0.15,
+#                               moderate=0.35, high=0.65, very_high=0.85)
+#   th_bias           : dict  — delta modifiers applied to Th1/Th2/Th17/Tfh
+#   dc_boost          : float — DC maturation boost (0-0.4)
+#   cd8_boost         : float — cross-presentation / CD8 T cell boost (0-0.4)
+#   confidence        : str   — 'approved'|'clinical'|'preclinical'|'research'
+#   notes             : str   — key mechanistic note with source
+#   compatible        : list  — vaccine types this adjuvant applies to
+#
+# Score mapping (literature-grounded ordinal → 0-1):
+#   none=0.0  low=0.15  moderate=0.35  high=0.65  very_high=0.85
+#
+# th_bias deltas are additive to the cascade-computed values before normalisation.
+# Positive = boost that Th subset; negative = suppress.
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _s(ordinal):
+    """Map ordinal string to 0-1 score."""
+    return {'none': 0.0, 'low': 0.15, 'moderate': 0.35,
+            'high': 0.65, 'very_high': 0.85}[ordinal]
+
+ADJUVANTS = {
+
+    # ── None ─────────────────────────────────────────────────────────────────
+    'None (formulation only)': {
+        'scores':     {'TLR7_8': 0.0, 'TLR3': 0.0, 'cGAS_STING': 0.0,
+                       'Complement': 0.0, 'Inflammasome': 0.0},
+        'th_bias':    {'Th1': 0.0, 'Th2': 0.0, 'Th17': 0.0, 'Tfh': 0.0},
+        'dc_boost': 0.0, 'cd8_boost': 0.0,
+        'confidence': 'approved',
+        'class': 'None',
+        'notes': 'No adjuvant added — innate activation from formulation chemistry only.',
+        'compatible': ['mRNA', 'DNA', 'Protein subunit'],
+    },
+
+    # ══ CLASS 1: MINERAL SALTS (Approved) ═══════════════════════════════════
+
+    'Alum (aluminium hydroxide)': {
+        'scores':     {'TLR7_8': _s('none'), 'TLR3': _s('none'),
+                       'cGAS_STING': _s('none'), 'Complement': _s('low'),
+                       'Inflammasome': _s('high')},
+        'th_bias':    {'Th1': -0.15, 'Th2': +0.30, 'Th17': 0.0, 'Tfh': -0.05},
+        'dc_boost': 0.10, 'cd8_boost': 0.0,
+        'confidence': 'approved',
+        'class': 'Mineral salt',
+        'notes': 'NLRP3-driven IL-1β/IL-18 (Kool 2008 J Immunol; Li 2008 J Immunol). '
+                 'Strong Th2/IgG1/IgE bias. STING dispensable (Immunity 2024). '
+                 'NLRP3 required for IL-1β but antibody production NLRP3-independent (PMC 2009).',
+        'compatible': ['Protein subunit', 'DNA', 'mRNA'],
+    },
+
+    'Aluminium phosphate': {
+        'scores':     {'TLR7_8': _s('none'), 'TLR3': _s('none'),
+                       'cGAS_STING': _s('none'), 'Complement': _s('low'),
+                       'Inflammasome': _s('moderate')},
+        'th_bias':    {'Th1': -0.10, 'Th2': +0.25, 'Th17': 0.0, 'Tfh': -0.05},
+        'dc_boost': 0.08, 'cd8_boost': 0.0,
+        'confidence': 'approved',
+        'class': 'Mineral salt',
+        'notes': 'Similar mechanism to Al hydroxide; different surface charge affects '
+                 'antigen adsorption kinetics. Slightly less inflammasome activation '
+                 'than hydroxide form (Brewer 1999 J Immunol; Badran 2022 Sci Rep).',
+        'compatible': ['Protein subunit', 'DNA', 'mRNA'],
+    },
+
+    # ══ CLASS 2: OIL-IN-WATER EMULSIONS (Approved) ══════════════════════════
+
+    'MF59 (squalene o/w emulsion)': {
+        'scores':     {'TLR7_8': _s('none'), 'TLR3': _s('none'),
+                       'cGAS_STING': _s('none'), 'Complement': _s('low'),
+                       'Inflammasome': _s('low')},
+        'th_bias':    {'Th1': +0.05, 'Th2': +0.05, 'Th17': 0.0, 'Tfh': +0.05},
+        'dc_boost': 0.20, 'cd8_boost': 0.10,
+        'confidence': 'approved',
+        'class': 'Emulsion',
+        'notes': 'NOT a TLR agonist (Seubert 2011 PNAS). Non-TLR MyD88 pathway. '
+                 'RIPK3-dependent necroptosis drives CD8 cross-presentation (eLife 2020). '
+                 'Broad chemokine induction; DC recruitment and monocyte-to-DC '
+                 'differentiation. Balanced/mildly Th2-leaning (PMC 2023).',
+        'compatible': ['Protein subunit', 'mRNA'],
+    },
+
+    'AS03 (squalene + α-tocopherol)': {
+        'scores':     {'TLR7_8': _s('none'), 'TLR3': _s('none'),
+                       'cGAS_STING': _s('none'), 'Complement': _s('low'),
+                       'Inflammasome': _s('low')},
+        'th_bias':    {'Th1': +0.05, 'Th2': +0.05, 'Th17': 0.0, 'Tfh': +0.08},
+        'dc_boost': 0.22, 'cd8_boost': 0.08,
+        'confidence': 'approved',
+        'class': 'Emulsion',
+        'notes': 'Similar to MF59 with α-tocopherol. Stimulates immune activation '
+                 'in both muscle and draining LN. Stronger Tfh induction than MF59 '
+                 'in head-to-head comparisons (PMC 2024 systems vaccinology). '
+                 'Used in pandemic influenza vaccines.',
+        'compatible': ['Protein subunit', 'mRNA'],
+    },
+
+    'AddaVax (MF59 mimetic)': {
+        'scores':     {'TLR7_8': _s('none'), 'TLR3': _s('none'),
+                       'cGAS_STING': _s('none'), 'Complement': _s('low'),
+                       'Inflammasome': _s('low')},
+        'th_bias':    {'Th1': +0.05, 'Th2': +0.05, 'Th17': 0.0, 'Tfh': +0.05},
+        'dc_boost': 0.18, 'cd8_boost': 0.10,
+        'confidence': 'approved',
+        'class': 'Emulsion',
+        'notes': 'Commercially available MF59 equivalent (InvivoGen). Same RIPK3 '
+                 'necroptosis mechanism for CD8 cross-presentation (eLife 2020). '
+                 'Widely used in preclinical mRNA-LNP adjuvant studies.',
+        'compatible': ['Protein subunit', 'mRNA'],
+    },
+
+    'Montanide ISA 51 (water-in-oil)': {
+        'scores':     {'TLR7_8': _s('none'), 'TLR3': _s('none'),
+                       'cGAS_STING': _s('none'), 'Complement': _s('moderate'),
+                       'Inflammasome': _s('low')},
+        'th_bias':    {'Th1': +0.10, 'Th2': +0.08, 'Th17': 0.0, 'Tfh': +0.05},
+        'dc_boost': 0.12, 'cd8_boost': 0.05,
+        'confidence': 'clinical',
+        'class': 'Emulsion',
+        'notes': 'Water-in-oil depot adjuvant. Slow antigen release prolongs '
+                 'exposure. Used in malaria and HIV clinical trials. Mixed Th1/Th2 '
+                 'without TLR activation. Local reactogenicity can be significant '
+                 '(Reed 2009 Expert Rev Vaccines).',
+        'compatible': ['Protein subunit'],
+    },
+
+    'Montanide ISA 720 (squalene w/o)': {
+        'scores':     {'TLR7_8': _s('none'), 'TLR3': _s('none'),
+                       'cGAS_STING': _s('none'), 'Complement': _s('low'),
+                       'Inflammasome': _s('low')},
+        'th_bias':    {'Th1': +0.08, 'Th2': +0.08, 'Th17': 0.0, 'Tfh': +0.05},
+        'dc_boost': 0.10, 'cd8_boost': 0.03,
+        'confidence': 'clinical',
+        'class': 'Emulsion',
+        'notes': 'Squalene-in-water; better tolerated than ISA 51. Malaria trials '
+                 '(Aucouturier 2001 Vaccine). Depot effect only — no TLR agonism.',
+        'compatible': ['Protein subunit'],
+    },
+
+    # ══ CLASS 3: TLR AGONISTS ════════════════════════════════════════════════
+
+    'MPLA / MPL (TLR4 agonist)': {
+        'scores':     {'TLR7_8': _s('high'), 'TLR3': _s('none'),
+                       'cGAS_STING': _s('none'), 'Complement': _s('none'),
+                       'Inflammasome': _s('none')},
+        'th_bias':    {'Th1': +0.30, 'Th2': -0.05, 'Th17': 0.0, 'Tfh': +0.10},
+        'dc_boost': 0.30, 'cd8_boost': 0.05,
+        'confidence': 'approved',
+        'class': 'TLR agonist',
+        'notes': 'TLR4 agonist — detoxified LPS from S. minnesota. TLR4→NF-κB→Th1. '
+                 'Scores mapped to TLR7_8 slot as the dominant innate-Th1 driver. '
+                 'First TLR agonist in licensed vaccines (AS04, 2009). '
+                 'Note: weaker human vs mouse TLR4 activity — ~27% efficacy vs Lipid A '
+                 'on human TLR4 (Frontiers Immunol 2020).',
+        'compatible': ['Protein subunit', 'mRNA', 'DNA'],
+    },
+
+    'GLA-SE (TLR4 synthetic)': {
+        'scores':     {'TLR7_8': _s('high'), 'TLR3': _s('none'),
+                       'cGAS_STING': _s('none'), 'Complement': _s('none'),
+                       'Inflammasome': _s('none')},
+        'th_bias':    {'Th1': +0.32, 'Th2': -0.05, 'Th17': 0.0, 'Tfh': +0.10},
+        'dc_boost': 0.28, 'cd8_boost': 0.05,
+        'confidence': 'clinical',
+        'class': 'TLR agonist',
+        'notes': 'Synthetic glucopyranosyl lipid A in squalene emulsion. Cleaner '
+                 'than MPL (defined single compound). Strong Th1 via TLR4. '
+                 'TB and HIV Phase I/II trials (Reed 2016 Sci Transl Med). '
+                 'Designed for improved human TLR4 activity over natural MPL.',
+        'compatible': ['Protein subunit', 'mRNA', 'DNA'],
+    },
+
+    'GLA-AF (TLR4, aqueous)': {
+        'scores':     {'TLR7_8': _s('moderate'), 'TLR3': _s('none'),
+                       'cGAS_STING': _s('none'), 'Complement': _s('none'),
+                       'Inflammasome': _s('none')},
+        'th_bias':    {'Th1': +0.22, 'Th2': -0.03, 'Th17': 0.0, 'Tfh': +0.07},
+        'dc_boost': 0.18, 'cd8_boost': 0.03,
+        'confidence': 'clinical',
+        'class': 'TLR agonist',
+        'notes': 'Same GLA as GLA-SE but aqueous nanosuspension. Lower potency '
+                 'than SE formulation due to reduced APC targeting (PMC 2023). '
+                 'Better thermostability; suitable for resource-limited settings.',
+        'compatible': ['Protein subunit', 'mRNA', 'DNA'],
+    },
+
+    'CpG 1018 / ODN 1018 (TLR9)': {
+        'scores':     {'TLR7_8': _s('very_high'), 'TLR3': _s('none'),
+                       'cGAS_STING': _s('none'), 'Complement': _s('none'),
+                       'Inflammasome': _s('none')},
+        'th_bias':    {'Th1': +0.35, 'Th2': -0.10, 'Th17': 0.0, 'Tfh': +0.08},
+        'dc_boost': 0.25, 'cd8_boost': 0.05,
+        'confidence': 'approved',
+        'class': 'TLR agonist',
+        'notes': 'TLR9 agonist — mapped to TLR7_8 slot as dominant innate-Th1 driver. '
+                 'FDA-approved 2017 in HEPLISAV-B hepatitis B vaccine (Dynavax). '
+                 'Strong IL-12, IFN-α, B cell activation. Very strong Th1/IgG2 bias. '
+                 'Class B (K-type) CpG ODN (Coffman 2010 Immunity 33:492).',
+        'compatible': ['Protein subunit', 'mRNA', 'DNA'],
+    },
+
+    'CpG 7909 / ODN 2006 (TLR9)': {
+        'scores':     {'TLR7_8': _s('very_high'), 'TLR3': _s('none'),
+                       'cGAS_STING': _s('none'), 'Complement': _s('none'),
+                       'Inflammasome': _s('none')},
+        'th_bias':    {'Th1': +0.35, 'Th2': -0.10, 'Th17': 0.0, 'Tfh': +0.08},
+        'dc_boost': 0.25, 'cd8_boost': 0.05,
+        'confidence': 'approved',
+        'class': 'TLR agonist',
+        'notes': 'FDA-approved 2023 in Cyfendus anthrax vaccine. Class B CpG. '
+                 'Similar mechanism to CpG 1018; different sequence optimised '
+                 'for human TLR9 (Wiley BTM 2024).',
+        'compatible': ['Protein subunit', 'mRNA', 'DNA'],
+    },
+
+    'R848 / Resiquimod (TLR7/8)': {
+        'scores':     {'TLR7_8': _s('very_high'), 'TLR3': _s('none'),
+                       'cGAS_STING': _s('none'), 'Complement': _s('none'),
+                       'Inflammasome': _s('none')},
+        'th_bias':    {'Th1': +0.35, 'Th2': -0.08, 'Th17': 0.0, 'Tfh': +0.12},
+        'dc_boost': 0.28, 'cd8_boost': 0.10,
+        'confidence': 'clinical',
+        'class': 'TLR agonist',
+        'notes': 'Direct TLR7/8 dual agonist (imidazoquinoline). Strong IFN-α, '
+                 'IL-12, TNF-α. Strong Th1 and CD8 cross-presentation. '
+                 'Phase I/II HIV and cancer vaccines. Systemic exposure limited '
+                 'by formulation (Frontiers Microbiol 2023).',
+        'compatible': ['Protein subunit', 'mRNA', 'DNA'],
+    },
+
+    '3M-052 (TLR7/8, lipidated)': {
+        'scores':     {'TLR7_8': _s('very_high'), 'TLR3': _s('none'),
+                       'cGAS_STING': _s('none'), 'Complement': _s('none'),
+                       'Inflammasome': _s('none')},
+        'th_bias':    {'Th1': +0.38, 'Th2': -0.08, 'Th17': 0.0, 'Tfh': +0.15},
+        'dc_boost': 0.30, 'cd8_boost': 0.12,
+        'confidence': 'clinical',
+        'class': 'TLR agonist',
+        'notes': 'Lipidated TLR7/8 agonist — retained at injection site, reducing '
+                 'systemic exposure. Induces long-lived plasma cells (up to ~1 year) '
+                 'in NHP studies. Robust antiviral IFN program similar to yellow '
+                 'fever vaccine (Nat Comms 2022). Phase I/II HIV, SARS-CoV-2.',
+        'compatible': ['Protein subunit', 'mRNA', 'DNA'],
+    },
+
+    'AS37 (TLR7, benzonaphthyridine-alum)': {
+        'scores':     {'TLR7_8': _s('high'), 'TLR3': _s('none'),
+                       'cGAS_STING': _s('none'), 'Complement': _s('low'),
+                       'Inflammasome': _s('low')},
+        'th_bias':    {'Th1': +0.25, 'Th2': +0.05, 'Th17': 0.0, 'Tfh': +0.08},
+        'dc_boost': 0.22, 'cd8_boost': 0.08,
+        'confidence': 'clinical',
+        'class': 'TLR agonist',
+        'notes': 'TLR7-selective benzonaphthyridine scaffold adsorbed to alum for '
+                 'local retention. Phase I meningococcal vaccine — acceptable safety, '
+                 'expected innate pathways activated (PMC 2025; Siena 2023). '
+                 'Alum component adds moderate inflammasome activation.',
+        'compatible': ['Protein subunit', 'mRNA', 'DNA'],
+    },
+
+    'Imiquimod / R837 (TLR7)': {
+        'scores':     {'TLR7_8': _s('high'), 'TLR3': _s('none'),
+                       'cGAS_STING': _s('none'), 'Complement': _s('none'),
+                       'Inflammasome': _s('none')},
+        'th_bias':    {'Th1': +0.28, 'Th2': -0.05, 'Th17': 0.0, 'Tfh': +0.08},
+        'dc_boost': 0.20, 'cd8_boost': 0.08,
+        'confidence': 'approved',
+        'class': 'TLR agonist',
+        'notes': 'TLR7-selective imidazoquinoline. FDA-approved for topical skin use '
+                 '(Aldara). Used as adjuvant in intradermal vaccine studies. '
+                 'Strong Th1 via IFN-α/IL-12. Species note: TLR8 not functional '
+                 'in mice — TLR7-only in murine models (Immunity 2010).',
+        'compatible': ['Protein subunit', 'mRNA', 'DNA'],
+    },
+
+    'Poly(I:C) (TLR3/MDA-5)': {
+        'scores':     {'TLR7_8': _s('none'), 'TLR3': _s('very_high'),
+                       'cGAS_STING': _s('none'), 'Complement': _s('none'),
+                       'Inflammasome': _s('none')},
+        'th_bias':    {'Th1': +0.25, 'Th2': -0.05, 'Th17': 0.0, 'Tfh': +0.05},
+        'dc_boost': 0.25, 'cd8_boost': 0.20,
+        'confidence': 'clinical',
+        'class': 'TLR agonist',
+        'notes': 'dsRNA mimic — TLR3 + cytosolic MDA-5. Strong type I IFN, IL-12. '
+                 'cDC1 cross-presentation → strong CD8 T cell responses. '
+                 'Toxic at high doses; rapid serum degradation limits clinical use '
+                 '(Frontiers Immunol 2023; PMC 2022).',
+        'compatible': ['Protein subunit', 'mRNA', 'DNA'],
+    },
+
+    'Poly-ICLC / Hiltonol (TLR3)': {
+        'scores':     {'TLR7_8': _s('none'), 'TLR3': _s('high'),
+                       'cGAS_STING': _s('none'), 'Complement': _s('none'),
+                       'Inflammasome': _s('none')},
+        'th_bias':    {'Th1': +0.25, 'Th2': -0.05, 'Th17': 0.0, 'Tfh': +0.05},
+        'dc_boost': 0.22, 'cd8_boost': 0.18,
+        'confidence': 'clinical',
+        'class': 'TLR agonist',
+        'notes': 'Poly(I:C) stabilised with poly-L-lysine + carboxymethylcellulose. '
+                 'Nuclease-resistant; lower toxicity than parent poly(I:C). '
+                 'Stronger Th1 than LPS or CpG in direct comparisons (PMC 2022). '
+                 'Clinical trials: malaria, HIV, cancer vaccines (Frontiers 2023).',
+        'compatible': ['Protein subunit', 'mRNA', 'DNA'],
+    },
+
+    'Pam3CSK4 (TLR1/2)': {
+        'scores':     {'TLR7_8': _s('none'), 'TLR3': _s('none'),
+                       'cGAS_STING': _s('none'), 'Complement': _s('none'),
+                       'Inflammasome': _s('none')},
+        'th_bias':    {'Th1': +0.12, 'Th2': 0.0, 'Th17': +0.15, 'Tfh': +0.03},
+        'dc_boost': 0.15, 'cd8_boost': 0.05,
+        'confidence': 'preclinical',
+        'class': 'TLR agonist',
+        'notes': 'Bacterial lipoprotein mimic. TLR1/2 heterodimer — NF-κB→Th1/Th17. '
+                 'Note: no dedicated Epitrix pathway slot — effect captured via '
+                 'dc_boost and th_bias deltas. Science Advances 2024 saponin-TLRa '
+                 'combination study.',
+        'compatible': ['Protein subunit', 'mRNA', 'DNA'],
+    },
+
+    # ══ CLASS 4: SAPONINS ═══════════════════════════════════════════════════
+
+    'Matrix-M (Novavax, saponin NP)': {
+        'scores':     {'TLR7_8': _s('none'), 'TLR3': _s('none'),
+                       'cGAS_STING': _s('none'), 'Complement': _s('moderate'),
+                       'Inflammasome': _s('moderate')},
+        'th_bias':    {'Th1': +0.20, 'Th2': +0.05, 'Th17': 0.0, 'Tfh': +0.10},
+        'dc_boost': 0.25, 'cd8_boost': 0.18,
+        'confidence': 'approved',
+        'class': 'Saponin',
+        'notes': 'Saponin nanoparticle (ISCOMATRIX-comparable). FDA-approved Oct 2022 '
+                 '(Novavax COVID-19 vaccine). NLRP3-driven inflammasome via saponin '
+                 'lysosomal destabilisation. Strong Th1 + CD8 cross-presentation. '
+                 'WHO-recommended R21/Matrix-M malaria vaccine 2023 (75% efficacy). '
+                 'Science Advances 2024.',
+        'compatible': ['Protein subunit', 'mRNA'],
+    },
+
+    'ISCOMATRIX (saponin NP)': {
+        'scores':     {'TLR7_8': _s('none'), 'TLR3': _s('none'),
+                       'cGAS_STING': _s('none'), 'Complement': _s('moderate'),
+                       'Inflammasome': _s('moderate')},
+        'th_bias':    {'Th1': +0.20, 'Th2': +0.05, 'Th17': 0.0, 'Tfh': +0.10},
+        'dc_boost': 0.25, 'cd8_boost': 0.18,
+        'confidence': 'clinical',
+        'class': 'Saponin',
+        'notes': 'Quil-A saponin + cholesterol + phospholipid, 30-70 nm nanoparticle. '
+                 'Well-tolerated particulate delivery. Strong Th1 + CD8 responses. '
+                 'Multiple Phase I/II trials. Precursor platform to Matrix-M '
+                 '(Science Advances 2024).',
+        'compatible': ['Protein subunit', 'mRNA'],
+    },
+
+    # ══ CLASS 5: COMBINATION ADJUVANT SYSTEMS (Approved) ════════════════════
+
+    'AS01B (MPL + QS-21, liposome)': {
+        'scores':     {'TLR7_8': _s('high'), 'TLR3': _s('none'),
+                       'cGAS_STING': _s('none'), 'Complement': _s('none'),
+                       'Inflammasome': _s('moderate')},
+        'th_bias':    {'Th1': +0.40, 'Th2': -0.05, 'Th17': 0.0, 'Tfh': +0.20},
+        'dc_boost': 0.35, 'cd8_boost': 0.10,
+        'confidence': 'approved',
+        'class': 'Combination',
+        'notes': 'MPL (TLR4→Th1) + QS-21 (NLRP3 inflammasome) in liposome. '
+                 'Synergistic — early IFN-γ from NK cells via IL-12/IL-18 '
+                 '(Coccia 2017 npj Vaccines). Blocking IFN-γ abolishes synergy. '
+                 'FDA-approved in Shingrix (zoster) and Mosquirix (malaria). '
+                 'Tandfonline 2024 AS01 review.',
+        'compatible': ['Protein subunit'],
+    },
+
+    'AS01E (MPL + QS-21, half-dose)': {
+        'scores':     {'TLR7_8': _s('moderate'), 'TLR3': _s('none'),
+                       'cGAS_STING': _s('none'), 'Complement': _s('none'),
+                       'Inflammasome': _s('low')},
+        'th_bias':    {'Th1': +0.30, 'Th2': -0.03, 'Th17': 0.0, 'Tfh': +0.15},
+        'dc_boost': 0.28, 'cd8_boost': 0.08,
+        'confidence': 'approved',
+        'class': 'Combination',
+        'notes': 'Half-dose AS01B (25 µg MPL + 25 µg QS-21). Similar mechanism '
+                 'to AS01B but lower magnitude. Used in paediatric malaria vaccine '
+                 'formulation (PMC 2024 comparative systems vaccinology).',
+        'compatible': ['Protein subunit'],
+    },
+
+    'AS04 (MPL + Alum)': {
+        'scores':     {'TLR7_8': _s('moderate'), 'TLR3': _s('none'),
+                       'cGAS_STING': _s('none'), 'Complement': _s('low'),
+                       'Inflammasome': _s('moderate')},
+        'th_bias':    {'Th1': +0.25, 'Th2': +0.05, 'Th17': 0.0, 'Tfh': +0.08},
+        'dc_boost': 0.22, 'cd8_boost': 0.03,
+        'confidence': 'approved',
+        'class': 'Combination',
+        'notes': 'MPL (TLR4→Th1) + alum (NLRP3 inflammasome + Th2). Net: Th1-leaning '
+                 'with some Th2 from alum component. Significantly higher IFN-γ than '
+                 'alum alone (Frontiers Immunol 2025). FDA-approved Cervarix HPV vaccine '
+                 'and Fendrix HBV vaccine.',
+        'compatible': ['Protein subunit'],
+    },
+
+    'AS15 (MPL + QS-21 + CpG, liposome)': {
+        'scores':     {'TLR7_8': _s('very_high'), 'TLR3': _s('none'),
+                       'cGAS_STING': _s('none'), 'Complement': _s('none'),
+                       'Inflammasome': _s('moderate')},
+        'th_bias':    {'Th1': +0.42, 'Th2': -0.08, 'Th17': 0.0, 'Tfh': +0.20},
+        'dc_boost': 0.38, 'cd8_boost': 0.12,
+        'confidence': 'clinical',
+        'class': 'Combination',
+        'notes': 'Triple combination: MPL (TLR4) + QS-21 (NLRP3) + CpG ODN (TLR9) '
+                 'in liposome. Very strong Th1 and Tfh. Used in cancer and HIV '
+                 'vaccine trials. Highest Th1 response of any GSK adjuvant system '
+                 '(PMC 2021 QS-21 review).',
+        'compatible': ['Protein subunit'],
+    },
+
+    'ALFQ (Army liposome + QS-21)': {
+        'scores':     {'TLR7_8': _s('moderate'), 'TLR3': _s('none'),
+                       'cGAS_STING': _s('none'), 'Complement': _s('none'),
+                       'Inflammasome': _s('moderate')},
+        'th_bias':    {'Th1': +0.30, 'Th2': -0.03, 'Th17': 0.0, 'Tfh': +0.15},
+        'dc_boost': 0.28, 'cd8_boost': 0.10,
+        'confidence': 'clinical',
+        'class': 'Combination',
+        'notes': 'Army Liposome Formulation (saturated phospholipids + cholesterol + '
+                 'MPLA) combined with QS-21. Similar composition to AS01 but different '
+                 'phospholipid. Malaria and HIV Phase I trials (Alving 2020; PMC 2025).',
+        'compatible': ['Protein subunit'],
+    },
+
+    'CAF01 (DDA + TDB, Mincle)': {
+        'scores':     {'TLR7_8': _s('none'), 'TLR3': _s('none'),
+                       'cGAS_STING': _s('none'), 'Complement': _s('none'),
+                       'Inflammasome': _s('low')},
+        'th_bias':    {'Th1': +0.18, 'Th2': 0.0, 'Th17': +0.18, 'Tfh': +0.05},
+        'dc_boost': 0.18, 'cd8_boost': 0.05,
+        'confidence': 'clinical',
+        'class': 'Combination',
+        'notes': 'Cationic DDA liposome + TDB (trehalose dibehenate — Mincle receptor '
+                 'agonist). Th1/Th17 bias; strong for intracellular pathogens (TB, '
+                 'chlamydia). Phase I trials completed (NCT02787109, NCT00922363). '
+                 'PMC 2025; Frontiers 2023.',
+        'compatible': ['Protein subunit'],
+    },
+
+    'CAF09 / CAF09b (DDA + MMG + Poly I:C)': {
+        'scores':     {'TLR7_8': _s('none'), 'TLR3': _s('high'),
+                       'cGAS_STING': _s('none'), 'Complement': _s('none'),
+                       'Inflammasome': _s('low')},
+        'th_bias':    {'Th1': +0.22, 'Th2': -0.03, 'Th17': +0.10, 'Tfh': +0.08},
+        'dc_boost': 0.22, 'cd8_boost': 0.18,
+        'confidence': 'clinical',
+        'class': 'Combination',
+        'notes': 'DDA liposome + MMG (Mincle) + Poly(I:C) (TLR3). Combines '
+                 'Th1/Th17 from Mincle with strong CD8 induction from TLR3. '
+                 'Phase I chlamydia vaccine (NCT03926728) completed. '
+                 'Frontiers 2023; PMC 2025.',
+        'compatible': ['Protein subunit'],
+    },
+
+    # ══ CLASS 6: CGAS-STING AGONISTS (Investigational) ══════════════════════
+
+    "2'3'-cGAMP (STING agonist)": {
+        'scores':     {'TLR7_8': _s('none'), 'TLR3': _s('none'),
+                       'cGAS_STING': _s('very_high'), 'Complement': _s('none'),
+                       'Inflammasome': _s('none')},
+        'th_bias':    {'Th1': +0.25, 'Th2': -0.05, 'Th17': 0.0, 'Tfh': +0.10},
+        'dc_boost': 0.20, 'cd8_boost': 0.25,
+        'confidence': 'preclinical',
+        'class': 'STING agonist',
+        'notes': 'Natural STING agonist. Strong type I IFN, Th1, CD8 responses. '
+                 'HUMAN STING NOTE: STING allele H232 responds to non-canonical CDNs; '
+                 'allele R232 (most common) responds to canonical. Poor membrane '
+                 'permeability (<60 min half-life). Nanoparticle delivery required '
+                 'for efficient in vivo adjuvancy (Wiley Med Res Rev 2024).',
+        'compatible': ['Protein subunit', 'mRNA', 'DNA'],
+    },
+
+    'ADU-S100 / MIW815 (STING)': {
+        'scores':     {'TLR7_8': _s('none'), 'TLR3': _s('none'),
+                       'cGAS_STING': _s('very_high'), 'Complement': _s('none'),
+                       'Inflammasome': _s('none')},
+        'th_bias':    {'Th1': +0.25, 'Th2': -0.05, 'Th17': 0.0, 'Tfh': +0.08},
+        'dc_boost': 0.18, 'cd8_boost': 0.22,
+        'confidence': 'preclinical',
+        'class': 'STING agonist',
+        'notes': 'Atypical CDN — Phase I solid tumour trial completed. Limited '
+                 'single-agent activity but IFN-γ/CXCL10 systemic activation '
+                 'confirmed dose-dependently (Clin Cancer Res 2022). Cleared from '
+                 'bloodstream within 2 hours. Not yet evaluated as vaccine adjuvant '
+                 'in infectious disease.',
+        'compatible': ['Protein subunit', 'mRNA', 'DNA'],
+    },
+
+    # ══ CLASS 7: MUCOSAL / OTHER ═════════════════════════════════════════════
+
+    'dmLT (double mutant heat-labile toxin)': {
+        'scores':     {'TLR7_8': _s('none'), 'TLR3': _s('none'),
+                       'cGAS_STING': _s('none'), 'Complement': _s('none'),
+                       'Inflammasome': _s('low')},
+        'th_bias':    {'Th1': +0.05, 'Th2': +0.05, 'Th17': +0.25, 'Tfh': +0.08},
+        'dc_boost': 0.15, 'cd8_boost': 0.05,
+        'confidence': 'clinical',
+        'class': 'Mucosal',
+        'notes': 'GM1-ganglioside targeting enterotoxin mutant. Mucosal Th17 + IgA '
+                 'responses via cAMP pathway. Phase I/II trials for ETEC and '
+                 'norovirus oral vaccines. Best used for mucosal vaccine routes. '
+                 'PMC 2023 oral adjuvant review.',
+        'compatible': ['Protein subunit'],
+    },
+
+    'Flagellin / FliC (TLR5)': {
+        'scores':     {'TLR7_8': _s('none'), 'TLR3': _s('none'),
+                       'cGAS_STING': _s('none'), 'Complement': _s('none'),
+                       'Inflammasome': _s('low')},
+        'th_bias':    {'Th1': +0.15, 'Th2': 0.0, 'Th17': +0.12, 'Tfh': +0.05},
+        'dc_boost': 0.18, 'cd8_boost': 0.08,
+        'confidence': 'clinical',
+        'class': 'Mucosal',
+        'notes': 'TLR5 agonist (bacterial flagellin). NF-κB→Th1/Th17 via MyD88. '
+                 'Also signals through NLRC4 inflammasome. Phase I/II trials as '
+                 'fusion protein with antigen. Generates responses against itself '
+                 '(immunogenicity concern). Frontiers Microbiol 2023.',
+        'compatible': ['Protein subunit'],
+    },
+
+    'Chitosan (polymer, cGAS-STING + NLRP3)': {
+        'scores':     {'TLR7_8': _s('none'), 'TLR3': _s('none'),
+                       'cGAS_STING': _s('low'), 'Complement': _s('low'),
+                       'Inflammasome': _s('moderate')},
+        'th_bias':    {'Th1': +0.12, 'Th2': +0.05, 'Th17': +0.10, 'Tfh': +0.05},
+        'dc_boost': 0.12, 'cd8_boost': 0.08,
+        'confidence': 'preclinical',
+        'class': 'Polymer',
+        'notes': 'Biodegradable cationic polymer. Dual activation: NLRP3 inflammasome '
+                 '(IL-1β) AND cGAS-STING pathway (type I IFN) — Immunity 2016 Carroll. '
+                 'Good safety profile. Th1/Th17/IgG2 when combined with CpG. '
+                 'Particulate delivery enhances mucosal responses. PMC 2025.',
+        'compatible': ['Protein subunit', 'mRNA', 'DNA'],
+    },
+
+    'CFA (Complete Freund — research only)': {
+        'scores':     {'TLR7_8': _s('moderate'), 'TLR3': _s('none'),
+                       'cGAS_STING': _s('none'), 'Complement': _s('low'),
+                       'Inflammasome': _s('moderate')},
+        'th_bias':    {'Th1': +0.35, 'Th2': -0.05, 'Th17': +0.10, 'Tfh': +0.08},
+        'dc_boost': 0.28, 'cd8_boost': 0.08,
+        'confidence': 'research',
+        'class': 'Research only',
+        'notes': 'Mineral oil + killed Mycobacterium tuberculosis. TLR2 (mycobacterial '
+                 'lipoproteins) + depot. Very strong Th1. NOT for human use — '
+                 'severe local reactions. Standard preclinical mouse model comparator. '
+                 'Seubert 2011 PNAS.',
+        'compatible': ['Protein subunit'],
+    },
+
+}
+
+# Confidence tier labels and colours for UI display
+ADJUVANT_CONFIDENCE = {
+    'approved':    ('FDA/EMA Approved',  '#16a34a'),
+    'clinical':    ('Clinical Trials',   '#2563eb'),
+    'preclinical': ('Preclinical',       '#d97706'),
+    'research':    ('Research Only',     '#dc2626'),
+}
+
+# Class grouping for selectbox display
+ADJUVANT_CLASS_ORDER = [
+    'None', 'Mineral salt', 'Emulsion', 'TLR agonist',
+    'Saponin', 'Combination', 'STING agonist', 'Mucosal', 'Polymer', 'Research only'
+]
+
 ANTIGEN_PRESETS = {
     '— Enter custom sequence —': {'sequence': '', 'type': 'custom', 'notes': ''},
     'SARS-CoV-2 Spike (S1 RBD)': {
@@ -1028,7 +1604,8 @@ def add_confidence_intervals(r: dict) -> dict:
 
 def run_integrated_prediction(ionizable_lipid, ionizable_ratio, helper_ratio,
                                cholesterol_ratio, peg_ratio, modification,
-                               modification_level, antigen_features=None):
+                               modification_level, antigen_features=None,
+                               vaccine_type='mRNA', adjuvant_name='None (formulation only)'):
     lipid_data = MOLECULAR_DESCRIPTORS['lipid_chemistry']['ionizable_lipids'][ionizable_lipid]
     mod_data   = MOLECULAR_DESCRIPTORS['nucleic_acid_modifications'][modification]
 
@@ -1059,34 +1636,189 @@ def run_integrated_prediction(ionizable_lipid, ionizable_ratio, helper_ratio,
     encapsulation_eff = min(0.98, 0.85 + (peg_ratio / 100) + rng.normal(0, 0.05))
     membrane_fluidity = max(0.3,  0.6  + (cholesterol_ratio - 30) * -0.01 + rng.normal(0, 0.05))
 
-    # ── Innate pathway activation ─────────────────────────────────────────────
+    # ── Innate pathway activation — vaccine-type aware ───────────────────────
     tlr_base         = 0.7 * (1 - mod_data.get('tlr_evasion', 0.5))
     tlr_lipid_effect = (lipid_data['pka'] - 6.0) * 0.1
-    innate = {
-        'TLR7_8':       float(np.clip(tlr_base + tlr_lipid_effect + rng.normal(0, 0.08), 0, 1)),
-        'TLR3':         float(np.clip(0.3 + rng.normal(0, 0.08), 0, 1)),
-        'cGAS_STING':   float(np.clip(0.4 + (particle_size - 80) * 0.005 + rng.normal(0, 0.08), 0, 1)),
-        'Complement':   float(np.clip(abs(zeta_potential) * 0.02 + rng.normal(0, 0.06), 0, 1)),
-        'Inflammasome': float(np.clip(0.3 + rng.normal(0, 0.06), 0, 1)),
-    }
+
+    if vaccine_type == 'mRNA':
+        # TLR7/8 dominant; driven by nucleoside modification and lipid pKa
+        innate = {
+            'TLR7_8':       float(np.clip(tlr_base + tlr_lipid_effect + rng.normal(0, 0.08), 0, 1)),
+            'TLR3':         float(np.clip(0.3 + rng.normal(0, 0.08), 0, 1)),
+            'cGAS_STING':   float(np.clip(0.4 + (particle_size - 80) * 0.005 + rng.normal(0, 0.08), 0, 1)),
+            'Complement':   float(np.clip(abs(zeta_potential) * 0.02 + rng.normal(0, 0.06), 0, 1)),
+            'Inflammasome': float(np.clip(0.3 + rng.normal(0, 0.06), 0, 1)),
+        }
+    elif vaccine_type == 'DNA':
+        # TLR9 and cGAS-STING dominant for cytosolic DNA sensing;
+        # TLR7/8 contribution is minimal (DNA is not ssRNA)
+        # Map TLR9 onto the TLR7_8 slot for cascade compatibility
+        tlr9 = float(np.clip(0.6 + tlr_lipid_effect + rng.normal(0, 0.08), 0, 1))
+        innate = {
+            'TLR7_8':       float(np.clip(tlr9 * 0.3 + rng.normal(0, 0.06), 0, 1)),  # TLR9 partial contribution
+            'TLR3':         float(np.clip(0.2 + rng.normal(0, 0.06), 0, 1)),
+            'cGAS_STING':   float(np.clip(0.65 + (particle_size - 80) * 0.005 + rng.normal(0, 0.08), 0, 1)),
+            'Complement':   float(np.clip(abs(zeta_potential) * 0.02 + rng.normal(0, 0.06), 0, 1)),
+            'Inflammasome': float(np.clip(0.35 + rng.normal(0, 0.06), 0, 1)),
+            '_TLR9':        tlr9,   # stored for display
+        }
+    else:  # Protein subunit
+        # No nucleic acid sensing. Innate driven by adjuvant and particle geometry.
+        # TLR7/8 and TLR3 negligible; cGAS-STING minimal; complement and
+        # inflammasome driven by particulate adjuvant properties.
+        adj_effect = abs(zeta_potential) * 0.025  # cationic particles activate complement
+        innate = {
+            'TLR7_8':       float(np.clip(0.08 + rng.normal(0, 0.04), 0, 0.2)),
+            'TLR3':         float(np.clip(0.06 + rng.normal(0, 0.04), 0, 0.15)),
+            'cGAS_STING':   float(np.clip(0.10 + rng.normal(0, 0.05), 0, 0.25)),
+            'Complement':   float(np.clip(adj_effect + 0.3 + rng.normal(0, 0.06), 0, 1)),
+            'Inflammasome': float(np.clip(0.25 + rng.normal(0, 0.06), 0, 1)),
+        }
+
+    # ── Apply adjuvant modifiers ──────────────────────────────────────────────
+    adj_data = ADJUVANTS.get(adjuvant_name, ADJUVANTS['None (formulation only)'])
+    adj_scores = adj_data['scores']
+
+    # Take the element-wise maximum of formulation-derived innate scores and
+    # adjuvant scores. Adjuvants ADD to the formulation response, never subtract —
+    # an adjuvant cannot reduce a pathway already activated by the formulation.
+    for key in ['TLR7_8', 'TLR3', 'cGAS_STING', 'Complement', 'Inflammasome']:
+        if key in innate:
+            innate[key] = float(np.clip(
+                max(innate[key], adj_scores[key]) + adj_scores[key] * 0.15,
+                0, 1
+            ))
 
     # ── Adaptive immune outcomes ──────────────────────────────────────────────
     th1  = float(np.clip(innate['TLR7_8'] * 0.5 + innate['cGAS_STING'] * 0.3 + ag_mhc2 * 0.2, 0, 1))
     th2  = float(np.clip(0.2 + (1 - ag_mhc1) * 0.1 + rng.normal(0, 0.06), 0, 1))
     th17 = float(np.clip(innate['Inflammasome'] * 0.5 + rng.normal(0, 0.06), 0, 1))
     tfh  = float(np.clip(innate['TLR7_8'] * 0.35 + th1 * 0.3 + ag_mhc2 * 0.15 + rng.normal(0, 0.06), 0, 1))
+
+    # Apply adjuvant Th bias deltas
+    adj_tb = adj_data['th_bias']
+    th1  = float(np.clip(th1  + adj_tb.get('Th1',  0.0), 0, 1))
+    th2  = float(np.clip(th2  + adj_tb.get('Th2',  0.0), 0, 1))
+    th17 = float(np.clip(th17 + adj_tb.get('Th17', 0.0), 0, 1))
+    tfh  = float(np.clip(tfh  + adj_tb.get('Tfh',  0.0), 0, 1))
     tot  = th1 + th2 + th17 + tfh + 0.01
     th_bias = {'Th1': th1/tot, 'Th2': th2/tot, 'Th17': th17/tot, 'Tfh': tfh/tot}
 
-    memory_quality = float(np.clip(th1*0.35 + tfh*0.35 + innate['TLR7_8']*0.15 + ag_antigenicity*0.15, 0, 1))
+    memory_quality = float(np.clip(th1*0.35 + tfh*0.35 + innate['TLR7_8']*0.15 + ag_antigenicity*0.15
+                                    + adj_data['dc_boost'] * 0.3, 0, 1))
     ab_peak_day    = max(7, 14 - innate['TLR7_8'] * 5 - ag_mhc2 * 2)
     ab_durability  = float(np.clip(memory_quality * 0.75 + tfh * 0.15 + ag_bcell * 0.1, 0.2, 1))
-    ab_magnitude   = float(np.clip(ag_antigenicity * 0.5 + tfh * 0.3 + innate['TLR7_8'] * 0.2, 0, 1))
+    ab_magnitude   = float(np.clip(ag_antigenicity * 0.5 + tfh * 0.3 + innate['TLR7_8'] * 0.2
+                                    + adj_data['cd8_boost'] * 0.15, 0, 1))
 
     reactogenicity = float(np.clip(
         innate['TLR7_8'] * 0.4 + innate['Complement'] * 0.3 + innate['Inflammasome'] * 0.3, 0, 1
     ))
-    efficacy = min(98, (th_bias['Th1']*0.3 + th_bias['Tfh']*0.3 + memory_quality*0.25 + ag_antigenicity*0.15) * 100)
+
+    # Adjuvant efficacy boost for protein vaccines (and small boost for mRNA/DNA)
+    # Captures clinical mechanisms not modelled by the mechanistic cascade:
+    # depot effect, direct B cell stimulation, antibody avidity enhancement.
+    _ADJ_EFF_BOOST = {
+        'None (formulation only)':             0.00,
+        'Alum (aluminium hydroxide)':           0.19,
+        'Aluminium phosphate':                  0.17,
+        'MF59 (squalene o/w emulsion)':         0.12,
+        'AS03 (squalene + α-tocopherol)':       0.13,
+        'AddaVax (MF59 mimetic)':               0.12,
+        'Montanide ISA 51 (water-in-oil)':      0.14,
+        'Montanide ISA 720 (squalene w/o)':     0.12,
+        'MPLA / MPL (TLR4 agonist)':            0.15,
+        'GLA-SE (TLR4 synthetic)':              0.16,
+        'GLA-AF (TLR4, aqueous)':               0.10,
+        'CpG 1018 / ODN 1018 (TLR9)':          0.20,
+        'CpG 7909 / ODN 2006 (TLR9)':          0.20,
+        'R848 / Resiquimod (TLR7/8)':           0.18,
+        '3M-052 (TLR7/8, lipidated)':           0.22,
+        'AS37 (TLR7, benzonaphthyridine-alum)': 0.16,
+        'Imiquimod / R837 (TLR7)':              0.14,
+        'Poly(I:C) (TLR3/MDA-5)':              0.10,
+        'Poly-ICLC / Hiltonol (TLR3)':          0.12,
+        'Pam3CSK4 (TLR1/2)':                   0.06,
+        'Matrix-M (Novavax, saponin NP)':       0.20,
+        'ISCOMATRIX (saponin NP)':              0.18,
+        'AS01B (MPL + QS-21, liposome)':        0.28,
+        'AS01E (MPL + QS-21, half-dose)':       0.22,
+        'AS04 (MPL + Alum)':                    0.20,
+        'AS15 (MPL + QS-21 + CpG, liposome)':  0.26,
+        'ALFQ (Army liposome + QS-21)':         0.22,
+        'CAF01 (DDA + TDB, Mincle)':            0.12,
+        'CAF09 / CAF09b (DDA + MMG + Poly I:C)': 0.14,
+        "2'3'-cGAMP (STING agonist)":           0.10,
+        'ADU-S100 / MIW815 (STING)':            0.08,
+        'dmLT (double mutant heat-labile toxin)': 0.10,
+        'Flagellin / FliC (TLR5)':              0.08,
+        'Chitosan (polymer, cGAS-STING + NLRP3)': 0.07,
+        'CFA (Complete Freund — research only)': 0.20,
+    }
+    # For mRNA and DNA: DIRECT MOLECULAR FORMULA using the four key molecular
+    # determinants — each independently sourced from published literature.
+    # This ensures efficacy varies with every molecular input, not just the
+    # innate cascade pathway (which was dominated by TLR7/8 and did not
+    # correctly reflect the m1Ψ > unmodified ordering observed in trials).
+    #
+    # Formula:
+    #   E_raw = tlr_evasion×0.25 + (trans_eff×mod_level/100)×0.35
+    #           + antigenicity×0.25 + pKa_opt×0.15
+    #   efficacy = clip(CAL_FLOOR + CAL_SCALE × E_raw, 5, 98)
+    #
+    # Molecular inputs → efficacy contribution:
+    #   tlr_evasion (0.25): reduces innate sensing → better translation context
+    #     (Karikó 2005 Immunity; Andries 2015 Nat Biotechnol)
+    #   translation_eff × mod_level (0.35): direct antigen expression level
+    #     (Anderson 2010 Mol Ther; Hassett 2019 npj Vaccines)
+    #   antigenicity (0.25): epitope quality from XGBoost ML model
+    #     (sequence-specific; determined by antigen, not formulation)
+    #   pKa_optimality (0.15): endosomal escape efficiency
+    #     peaked at pKa 6.5; (Kulkarni 2021 Nano Lett)
+    #
+    # Calibration anchors:
+    #   BNT162b2 (ALC-0315 + m1Ψ):  94%  (Polack NEJM 2020)
+    #   DOTAP + unmodified:          47%  (Kauffman 2015; poor clinical performer)
+    #
+    # For protein subunit: innate cascade formula retained with per-adjuvant boosts
+    # calibrated to Phase 3 trials (Polack 2020, Baden 2021, Lal 2015).
+
+    def _pka_optimality(pka):
+        """Endosomal escape optimality: peaked at pKa 6.5, range ±2.5."""
+        return float(max(0.0, 1.0 - abs(pka - 6.5) / 2.5))
+
+    if vaccine_type in ('mRNA', 'DNA'):
+        _tlr_ev    = mod_data.get('tlr_evasion', 0.5)
+        _trans_adj = float(np.clip(mod_data.get('translation_eff', 0.8)
+                                   * (modification_level / 100.0), 0.0, 1.0))
+        _pka_opt   = _pka_optimality(lipid_data['pka'])
+        _ag_ant    = ag_antigenicity  # from XGBoost ML model
+
+        # Additive weights sum to 1.0
+        _e_raw = (_tlr_ev * 0.25 + _trans_adj * 0.35
+                  + _ag_ant * 0.25 + _pka_opt * 0.15)
+
+        # Calibration: BNT162b2 (E_raw≈0.825) → 94%; DOTAP+unmod (E_raw≈0.460) → 47%
+        _CAL_FLOOR = -0.1217
+        _CAL_SCALE =  1.2863
+        efficacy = float(max(5.0, min(98.0, (_CAL_FLOOR + _CAL_SCALE * _e_raw) * 100)))
+
+        # Adjuvant boost for mRNA/DNA: small additive contribution on top
+        _adj_boost = _ADJ_EFF_BOOST.get(adjuvant_name, 0.0) * 0.3
+        efficacy = float(max(5.0, min(98.0, efficacy + _adj_boost * 100)))
+
+    else:
+        # ── Protein subunit: cascade-based formula + adjuvant clinical boost ──
+        _EFFICACY_PARAMS_PROT = (0.128, 1.719)  # FLOOR, SCALE
+        _floor, _scale = _EFFICACY_PARAMS_PROT
+        _internal = (th_bias['Th1']*0.3 + th_bias['Tfh']*0.3
+                     + memory_quality*0.25 + ag_antigenicity*0.15)
+        _adj_boost = _ADJ_EFF_BOOST.get(adjuvant_name, 0.0)
+        efficacy = float(max(5.0, min(98.0,
+                    (_floor + _scale * _internal + _adj_boost) * 100)))
+
+    # Duration scales with memory quality — extended for vaccines with
+    # strong Tfh and adjuvant-driven germinal centre responses
     duration = max(3, memory_quality * 24 + rng.normal(0, 2))
 
     return {
@@ -1123,27 +1855,15 @@ def run_integrated_prediction(ionizable_lipid, ionizable_ratio, helper_ratio,
 # Uses the same deterministic prediction engine so results are reproducible.
 # ─────────────────────────────────────────────────────────────────────────────
 def run_formulation_optimizer(antigen_features, objective: str = 'balanced',
-                               top_n: int = 5) -> list[dict]:
+                               top_n: int = 5,
+                               vaccine_type: str = 'mRNA',
+                               adjuvant_name: str = 'None (formulation only)') -> list[dict]:
     """
-    Grid search over key formulation parameters.
-    Returns top_n ranked formulations as a list of result dicts.
+    Grid search over design parameters appropriate to the vaccine type.
 
-    Objective options:
-        'efficacy'    — maximise predicted efficacy %
-        'safety'      — maximise safety score (minimise reactogenicity)
-        'balanced'    — harmonic mean of efficacy and safety
-        'durability'  — maximise protection duration
-        'th1_bias'    — maximise Th1/Tfh ratio (cellular immunity)
+    mRNA / DNA:  sweeps ionizable lipids × ratios × modifications
+    Protein:     sweeps adjuvants × formulation vehicles × antigen doses
     """
-    # ── Search grid ───────────────────────────────────────────────────────────
-    lipids      = ['ALC-0315', 'SM-102', 'DLin-MC3-DMA', 'Lipid 5', 'CL4H6', 'L-319']
-    ion_ratios  = [38, 42, 46, 50]
-    chol_ratios = [28, 32, 36]
-    peg_ratios  = [1, 2, 3]
-    mods        = ['N1-methyl-pseudouridine (m1Ψ)', 'm5C + Ψ (dual)',
-                   'Pseudouridine (Ψ)', 'circRNA', 'saRNA + m1Ψ']
-    helper      = 16   # fixed for speed
-    mod_level   = 100
 
     def score(r: dict) -> float:
         clin = r['clinical_predictions']
@@ -1162,24 +1882,100 @@ def run_formulation_optimizer(antigen_features, objective: str = 'balanced',
             return 2 * e * s / (e + s + 1e-9)
 
     candidates = []
-    total = len(lipids) * len(ion_ratios) * len(chol_ratios) * len(peg_ratios) * len(mods)
 
-    for lipid in lipids:
-        for ir in ion_ratios:
-            for cr in chol_ratios:
-                for pr in peg_ratios:
-                    for mod in mods:
-                        r = run_integrated_prediction(
-                            lipid, ir, helper, cr, pr, mod, mod_level,
-                            antigen_features=antigen_features
-                        )
-                        r['_formulation'] = {
-                            'lipid': lipid, 'ionizable_ratio': ir,
-                            'helper_ratio': helper, 'cholesterol_ratio': cr,
-                            'peg_ratio': pr, 'modification': mod,
-                        }
-                        r['_score'] = score(r)
-                        candidates.append(r)
+    if vaccine_type in ('mRNA', 'DNA'):
+        # ── LNP formulation sweep ─────────────────────────────────────────────
+        lipids      = ['ALC-0315', 'SM-102', 'DLin-MC3-DMA', 'Lipid 5', 'CL4H6', 'L-319']
+        ion_ratios  = [38, 42, 46, 50]
+        chol_ratios = [28, 32, 36]
+        peg_ratios  = [1, 2, 3]
+        mods        = ['N1-methyl-pseudouridine (m1Ψ)', 'm5C + Ψ (dual)',
+                       'Pseudouridine (Ψ)', 'circRNA', 'saRNA + m1Ψ']
+        helper = 16
+        mod_level = 100
+
+        for lipid in lipids:
+            for ir in ion_ratios:
+                for cr in chol_ratios:
+                    for pr in peg_ratios:
+                        for mod in mods:
+                            r = run_integrated_prediction(
+                                lipid, ir, helper, cr, pr, mod, mod_level,
+                                antigen_features=antigen_features,
+                                vaccine_type=vaccine_type,
+                                adjuvant_name=adjuvant_name
+                            )
+                            r['_formulation'] = {
+                                'type': vaccine_type,
+                                'label': f"{lipid} / {mod[:22]}",
+                                'lipid': lipid,
+                                'ionizable_ratio': ir,
+                                'helper_ratio': helper,
+                                'cholesterol_ratio': cr,
+                                'peg_ratio': pr,
+                                'modification': mod,
+                                'adjuvant': adjuvant_name,
+                            }
+                            r['_score'] = score(r)
+                            candidates.append(r)
+
+    else:
+        # ── Protein subunit: sweep adjuvants × formulation vehicles ──────────
+        # The key design variables for protein vaccines are:
+        #   1. Adjuvant identity (the dominant immunogenicity driver)
+        #   2. Formulation vehicle (alum adsorption, emulsion, liposome, aqueous)
+        #   3. Antigen dose proxy (carried as mod_level — affects expression signal)
+        # LNP lipid choice is held constant at SM-102 as a carrier baseline;
+        # it does not drive the immune response for protein vaccines.
+
+        # Adjuvants compatible with protein subunit, excluding None and research-only
+        protein_adjuvants = [
+            k for k, v in ADJUVANTS.items()
+            if 'Protein subunit' in v['compatible']
+            and v['confidence'] != 'research'
+            and k != 'None (formulation only)'
+        ]
+        # Also include None so unadjuvanted appears in comparison
+        protein_adjuvants = ['None (formulation only)'] + protein_adjuvants
+
+        # Formulation vehicles: different alum/emulsion/liposome carriers
+        # modelled as ionizable ratio variants (affects particle charge and
+        # complement activation — the main LNP-relevant variable for protein vaccines)
+        vehicles = [
+            ('Alum-adsorbed',    40, 38, 2),   # ion/chol/peg reflects compact particle
+            ('Emulsion (o/w)',   42, 32, 2),   # looser emulsion geometry
+            ('Liposomal',        38, 36, 1),   # high cholesterol, low PEG
+            ('Aqueous solution', 42, 30, 3),   # standard aqueous
+        ]
+
+        lipid = 'SM-102'   # held constant — not the design variable for protein vaccines
+        mod   = 'Unmodified'  # no nucleoside modification for protein vaccines
+        mod_level = 0
+
+        for adj in protein_adjuvants:
+            for veh_name, ir, cr, pr in vehicles:
+                r = run_integrated_prediction(
+                    lipid, ir, 16, cr, pr, mod, mod_level,
+                    antigen_features=antigen_features,
+                    vaccine_type='Protein subunit',
+                    adjuvant_name=adj
+                )
+                adj_class = ADJUVANTS[adj]['class']
+                r['_formulation'] = {
+                    'type': 'Protein subunit',
+                    'label': f"{adj[:30]} / {veh_name}",
+                    'lipid': lipid,           # kept for backward compat
+                    'adjuvant': adj,
+                    'adjuvant_class': adj_class,
+                    'vehicle': veh_name,
+                    'ionizable_ratio': ir,
+                    'helper_ratio': 16,
+                    'cholesterol_ratio': cr,
+                    'peg_ratio': pr,
+                    'modification': mod,
+                }
+                r['_score'] = score(r)
+                candidates.append(r)
 
     candidates.sort(key=lambda x: x['_score'], reverse=True)
     return candidates[:top_n]
@@ -1337,8 +2133,9 @@ def display_core_innovation():
     <div class="content-container">
       <div class="innovation-card">
         <h2 class="section-title">🚀 The Current Gap in Immune Modeling</h2>
-        <p class="section-subtitle">Existing models treat innate and adaptive immunity as separate problems.
-        This platform bridges that gap with a fully integrated mechanistic cascade.</p>
+        <p class="section-subtitle">Existing tools treat epitope prediction, innate activation, and adaptive
+        outcomes as separate problems with no connection between them.
+        Epitrix bridges that gap with a hybrid ML + mechanistic pipeline.</p>
       </div>
     </div>
     """, unsafe_allow_html=True)
@@ -1348,13 +2145,13 @@ def display_core_innovation():
         st.markdown("""
         <div class="content-container" style="padding-top:0;">
           <div class="innovation-card">
-            <h3 style="font-size:1.1rem;font-weight:700;color:#111827;margin:0 0 0.75rem;">❌ Current Approach</h3>
+            <h3 style="font-size:1.1rem;font-weight:700;color:#111827;margin:0 0 0.75rem;">❌ Current Landscape</h3>
             <ul>
-              <li>Separate innate immune models</li>
-              <li>Separate adaptive immune models</li>
-              <li>No mechanistic connection between the two</li>
-              <li>Cannot predict how formulation chemistry drives T cell polarization</li>
-              <li>Reactogenicity assessed post-hoc in clinical trials</li>
+              <li>Epitope prediction tools (NetMHCpan, MHCflurry) are standalone — not connected to formulation inputs</li>
+              <li>Innate and adaptive immune models exist separately with no shared pipeline</li>
+              <li>No publicly available tool connects LNP formulation chemistry to T cell outcome prediction</li>
+              <li>LNP pKa and lipid choice effects on Th1/Tfh polarisation are known experimentally but not computationally modelled in accessible tools</li>
+              <li>Reactogenicity prediction from formulation chemistry is not available in an integrated pre-synthesis pipeline</li>
             </ul>
           </div>
         </div>
@@ -1363,14 +2160,22 @@ def display_core_innovation():
         st.markdown("""
         <div class="content-container" style="padding-top:0;">
           <div class="innovation-card" style="border-left:4px solid #10b981;">
-            <h3 style="font-size:1.1rem;font-weight:700;color:#111827;margin:0 0 0.75rem;">✅ Our Approach</h3>
+            <h3 style="font-size:1.1rem;font-weight:700;color:#111827;margin:0 0 0.75rem;">✅ The Epitrix Approach</h3>
             <ul>
-              <li>Integrated Epitrix mechanistic cascade model</li>
-              <li>Molecular descriptors drive innate pathway activation</li>
-              <li>Innate signals deterministically shape adaptive quality</li>
-              <li>Predict Th1/Th2/Tfh bias, memory durability</li>
-              <li>Clinical Reactogenicity <strong>predicted</strong> from the same cascade</li>
+              <li><strong>XGBoost MHC-I epitope model</strong> trained on 219k IEDB peptides — AUC 0.986 (random split), AUC 0.789 (independent holdout)</li>
+              <li><strong>XGBoost T cell immunogenicity model</strong> trained on 92k IEDB assays — AUC 0.928 (human), AUC 0.907 (mouse)</li>
+              <li>Delivery system features extracted from IEDB free-text fields — first delivery-aware T cell predictor from bulk IEDB data</li>
+              <li>Epitope scores feed directly into parameterised innate and adaptive cascade equations</li>
+              <li>LNP molecular descriptors (pKa, branching, modification) drive innate pathway activation</li>
+              <li>Innate signals shape Th1/Th2/Tfh bias, memory quality, and antibody magnitude</li>
+              <li>Clinical reactogenicity predicted from the same cascade — not a separate model</li>
+              <li>Efficacy equation calibrated to Phase 3 trial data: mRNA-LNP (BNT162b2/mRNA-1273) → ~94%, protein+AS01B → ~97%, protein+alum → ~60%</li>
+              <li>All outputs carry 95% CI from published biological variability data</li>
             </ul>
+            <p style="font-size:0.78rem;color:#6b7280;margin-top:0.75rem;font-style:italic;">
+              Note: cascade coefficients are parameterised from literature, not statistically fitted.
+              Results are for hypothesis generation and comparative analysis — not clinical decision-making.
+            </p>
           </div>
         </div>
         """, unsafe_allow_html=True)
@@ -1381,31 +2186,31 @@ def display_breakthrough_concept():
     <div class="content-container">
       <div class="innovation-card">
         <h2 class="section-title">💡 The Epitrix Concept</h2>
-        <p class="section-subtitle">One mechanistic cascade — from molecular design to clinical outcome</p>
+        <p class="section-subtitle">Hybrid ML + mechanistic pipeline — from molecular design to clinical outcome</p>
         <div class="cascade-flow">
-          <div class="flow-step" style="border-color:#fde68a;background:linear-gradient(135deg,#fefce8,#ffffff);">
-            <strong style="color:#92400e !important;">🎯 Antigen Sequence Design</strong>
-            <em style="color:#78350f !important;">Protein/mRNA sequence · MHC-I/II epitope density · B-cell surface exposure</em>
+          <div class="flow-step" style="border-color:#ede9fe;background:linear-gradient(135deg,#f5f3ff,#ffffff);">
+            <strong style="color:#4c1d95 !important;">🤖 Antigen Sequence + XGBoost Epitope Model</strong>
+            <em style="color:#5b21b6 !important;">MHC-I AUC 0.986 · T cell AUC 0.928 · human &amp; mouse · IEDB-trained</em>
           </div>
           <div class="flow-arrow">⬇️</div>
           <div class="flow-step">
-            <strong>Nanoparticle Molecular Design</strong>
-            <em>Lipid chemistry · pKa · branching · PEG density · helper lipid</em>
+            <strong>LNP Formulation Chemistry</strong>
+            <em>Ionizable lipid · pKa · branching · PEG density · nucleic acid modifications</em>
           </div>
           <div class="flow-arrow">⬇️</div>
           <div class="flow-step">
-            <strong>Specific Innate Immune Activation Patterns</strong>
-            <em>TLR7/8 · TLR3 · cGAS-STING · complement · inflammasome</em>
+            <strong>Innate Immune Activation</strong>
+            <em>TLR7/8 · TLR3 · cGAS-STING · complement · inflammasome — parameterised equations</em>
           </div>
           <div class="flow-arrow">⬇️</div>
           <div class="flow-step">
-            <strong>Resulting Adaptive Immune Quality / Magnitude</strong>
-            <em>Th1/Th2/Th17/Tfh bias · antigen-specific memory · Ab magnitude</em>
+            <strong>Adaptive Immune Quality</strong>
+            <em>Th1/Th2/Tfh bias · T cell immunogenicity · antibody magnitude · memory durability</em>
           </div>
           <div class="flow-arrow">⬇️</div>
           <div class="flow-step" style="border-color:#a7f3d0;background:linear-gradient(135deg,#ecfdf5,white);">
-            <strong style="color:#065f46 !important;">📤 Predicted Clinical Reactogenicity</strong>
-            <em style="color:#047857 !important;">Safety score · tolerability window · population variability</em>
+            <strong style="color:#065f46 !important;">📤 Predicted Clinical Outcomes</strong>
+            <em style="color:#047857 !important;">Reactogenicity · safety score · tolerability · population variability ± 95% CI</em>
           </div>
         </div>
       </div>
@@ -1421,27 +2226,53 @@ def display_prediction_targets():
     <div class="content-container">
       <div class="innovation-card">
         <h2 class="section-title">🎯 Key Prediction Targets</h2>
-        <p class="section-subtitle">Five mechanistic layers predicted from molecular inputs</p>
+        <p class="section-subtitle">Two ML-trained layers and five mechanistic layers predicted from molecular inputs</p>
       </div>
     </div>
     """, unsafe_allow_html=True)
 
     targets = [
-        ("1. Innate Sensing Specificity",
-         "Which modifications trigger TLR7/8 vs. TLR3 vs. cGAS-STING vs. complement",
-         ["Pathway-specific activation thresholds", "Molecular trigger identification", "Temporal activation patterns"]),
-        ("2. Dendritic Cell Programming",
-         "How innate signals shape DC maturation and cytokine profiles",
-         ["DC subset activation (cDC1 vs cDC2)", "Cytokine production kinetics", "Antigen presentation efficiency"]),
-        ("3. T Cell Differentiation",
-         "Predicting Th1/Th2/Th17/Tfh bias from formulation chemistry",
-         ["Helper T cell subset determination", "Transcription factor activation", "Cytokine environment prediction"]),
-        ("4. Memory Formation Quality",
-         "Which innate-adaptive combinations lead to durable vs. short-lived immunity",
-         ["Long-lived plasma cell generation", "Memory B and T cell persistence", "Protection duration estimate"]),
-        ("5. Clinical Reactogenicity",
-         "Predicted safety and tolerability derived from the innate cascade — not a separate input",
-         ["Local and systemic reaction score", "Dose-response tolerability window", "Population variability estimation"]),
+        ("ML 1. MHC-I Epitope Binding",
+         "XGBoost classifier trained on 219,853 human and 59,877 mouse IEDB 9-mer peptides. Predicts whether a peptide will bind HLA (human) or H-2 (mouse) class I alleles. 257 features per peptide including per-position physicochemistry, allele identity flags, and log-transformed IC50.",
+         ["AUC-ROC 0.986 (human HLA) · 0.970 (mouse H-2) on random split",
+          "Independent holdout AUC 0.789 (post-2023 binding affinity assays, n=2,838)",
+          "3-class output: non-binder / weak binder / strong binder",
+          "Replaces PSSM scanner with data-driven prediction"]),
+        ("ML 2. T Cell Immunogenicity",
+         "XGBoost classifier trained on 92,650 human and 74,210 mouse IEDB in vivo immunisation assays. Predicts probability of a peptide triggering a T cell response. Uniquely incorporates delivery system features extracted from free-text IEDB fields.",
+         ["AUC-ROC 0.928 (human) · 0.907 (mouse) on random split",
+          "Species-specific models: 3.7pp improvement over combined model",
+          "Delivery system features: LNP, liposome, viral, DNA, mRNA, peptide-only",
+          "LNP-modulated: base probability scaled by innate activation factor"]),
+        ("3. Innate Sensing Specificity",
+         "Parameterised mechanistic equations predicting which innate pathways are activated by a given LNP formulation. Coefficients derived from published literature (22 sources). Not statistically fitted to data.",
+         ["TLR7/8 activation: driven by pKa, nucleic acid modification, and TLR evasion score",
+          "cGAS-STING: driven by lipid branching factor and particle geometry",
+          "Complement: modulated by PEG density and zeta potential",
+          "Inflammasome: driven by unmodified nucleosides and high pKa lipids"]),
+        ("4. Dendritic Cell Programming",
+         "Mechanistic prediction of DC maturation state and cytokine output from innate pathway activation scores. Feeds the T cell polarisation equations downstream.",
+         ["DC maturation score: weighted combination of TLR7/8, cGAS-STING, and antigen expression",
+          "Cytokine kinetics: TNF-α, IL-6, IL-12, IFN-α/β temporal profiles",
+          "Antigen presentation efficiency: modulated by encapsulation and endosomal escape"]),
+        ("5. T Cell Differentiation",
+         "Mechanistic prediction of Th1/Th2/Th17/Tfh polarisation from DC programming outputs and epitope quality. Th1 and Tfh drive protection; Th2 drives allergic risk; Th17 drives mucosal immunity.",
+         ["Th1 = TLR7/8 × 0.5 + cGAS-STING × 0.3 + ag_mhc2 × 0.2",
+          "Tfh = TLR7/8 × 0.35 + Th1 × 0.3 + ag_mhc2 × 0.15",
+          "Coefficients are literature-informed approximations, not fitted values"]),
+        ("6. Memory Formation and Antibody Quality",
+         "Mechanistic prediction of long-term protective immunity from Th1, Tfh, and antigenicity inputs. Includes antibody magnitude, peak day, and durability.",
+         ["Memory quality = Th1 × 0.35 + Tfh × 0.35 + TLR7/8 × 0.15 + antigenicity × 0.15",
+          "Antibody magnitude = antigenicity × 0.5 + Tfh × 0.3 + TLR7/8 × 0.2",
+          "Protection duration estimate in months from memory quality and Ab durability"]),
+        ("7. Clinical Reactogenicity, Safety, and Efficacy",
+         "Reactogenicity is derived from the innate cascade. Efficacy for mRNA/DNA uses a direct molecular formula calibrated to Phase 3 trial data. Protein subunit uses the cascade formula with per-adjuvant clinical boosts.",
+         ["Reactogenicity = TLR7/8 × 0.4 + Complement × 0.3 + Inflammasome × 0.3",
+          "mRNA/DNA efficacy = f(TLR evasion×0.25 + translation×mod_level×0.35 + antigenicity×0.25 + pKa_opt×0.15)",
+          "Each molecular input contributes independently: changing lipid pKa, modification type, mod level, or antigen all change predicted efficacy",
+          "Calibration anchors: BNT162b2 95% (Polack NEJM 2020), DOTAP+unmodified ~47% (Kauffman 2015)",
+          "Protein: cascade formula + adjuvant clinical boosts (Shingrix 97%, HEPLISAV-B 93%, alum HepB 60%)",
+          "All outputs carry 95% CI from published inter-individual biological variability data"]),
     ]
 
     for title, desc, details in targets:
@@ -1466,11 +2297,11 @@ def display_data_integration():
     st.markdown("""
     <div class="content-container">
       <div class="innovation-card">
-        <h2 class="section-title">📊 Unique Data Integration</h2>
+        <h2 class="section-title">📊 Data Integration Architecture</h2>
         <p class="section-subtitle">
-          Multi-modal inputs feed the mechanistic cascade.
-          <strong>Clinical Reactogenicity is a predicted output</strong> generated by the model —
-          it is not used as an input data source.
+          Epitrix accepts two categories of user inputs and produces six categories of predicted outputs.
+          The innate and adaptive immune values shown in the platform are <strong>model predictions</strong>,
+          not measurements — they are derived from the molecular inputs below.
         </p>
       </div>
     </div>
@@ -1481,20 +2312,30 @@ def display_data_integration():
     with col1:
         st.markdown("""
         <div class="content-container" style="padding-top:0;">
-          <div class="data-card">
-            <h4>🧬 Molecular Descriptors (Input)</h4>
+          <div class="data-card" style="border-left:4px solid #2563eb;">
+            <h4>📥 User Inputs — Molecular Design</h4>
+            <p style="font-size:0.82rem;color:#4b5563;margin-bottom:0.5rem;">
+              Everything the user provides. No experimental measurements required.
+            </p>
             <ul>
-              <li><strong>Lipid Chemistry:</strong> pKa, LogP, branching factor, MW</li>
-              <li><strong>Nucleic Acid Modifications:</strong> TLR evasion, stability, translation efficiency</li>
-              <li><strong>Nanoparticle Geometry:</strong> Size, zeta potential, PEG density</li>
+              <li><strong>Antigen sequence:</strong> Protein, mRNA, or DNA (single-letter code)</li>
+              <li><strong>Species:</strong> Human (HLA) or mouse (H-2)</li>
+              <li><strong>Ionizable lipid:</strong> Name, pKa, LogP, molecular weight, branching factor</li>
+              <li><strong>Formulation ratios:</strong> Ionizable / helper / cholesterol / PEG mol%</li>
+              <li><strong>Nucleic acid modification:</strong> m1Ψ, s²U, pseudouridine, circRNA, saRNA, unmodified</li>
+              <li><strong>Modification level:</strong> 0–100%</li>
             </ul>
           </div>
-          <div class="data-card">
-            <h4>🔥 Innate Immune Readouts (Input)</h4>
+
+          <div class="data-card" style="border-left:4px solid #7c3aed;margin-top:1rem;">
+            <h4>🤖 ML Training Data (IEDB — used offline)</h4>
+            <p style="font-size:0.82rem;color:#4b5563;margin-bottom:0.5rem;">
+              The datasets the XGBoost models were trained on. Not required at runtime.
+            </p>
             <ul>
-              <li><strong>Cytokine Kinetics:</strong> TNF-α, IL-6, IL-12, IFN-α/β profiles</li>
-              <li><strong>Cell Activation Markers:</strong> DC maturation scores</li>
-              <li><strong>Pathway Activation:</strong> TLR7/8, cGAS-STING, complement, inflammasome</li>
+              <li><strong>IEDB MHC ligand dataset:</strong> 219,853 human + 59,877 mouse 9-mer peptides with IC50 measurements</li>
+              <li><strong>IEDB T cell dataset:</strong> 92,650 human + 74,210 mouse in vivo immunisation assays</li>
+              <li><strong>Delivery system features:</strong> Extracted from free-text adjuvant and protocol fields</li>
             </ul>
           </div>
         </div>
@@ -1503,25 +2344,54 @@ def display_data_integration():
     with col2:
         st.markdown("""
         <div class="content-container" style="padding-top:0;">
-          <div class="data-card">
-            <h4>🎯 Adaptive Immune Outcomes (Input)</h4>
+          <div class="data-card output" style="border-left:4px solid #10b981;">
+            <h4>📤 Predicted Outputs — ML Layer</h4>
+            <p style="font-size:0.82rem;color:#4b5563;margin-bottom:0.5rem;">
+              Generated by the trained XGBoost models from the antigen sequence input.
+            </p>
             <ul>
-              <li><strong>Antibody Titers:</strong> Magnitude and durability measurements</li>
-              <li><strong>T Cell Responses:</strong> Subset differentiation data (Th1/Th2/Tfh)</li>
-              <li><strong>Memory Formation:</strong> Long-term immunity markers</li>
+              <li><strong>MHC-I binding score:</strong> Fraction of 9-mers predicted as strong/weak binders (AUC 0.986)</li>
+              <li><strong>T cell immunogenicity:</strong> Per-peptide probability of triggering in vivo response (AUC 0.928)</li>
+              <li><strong>Antigenicity composite:</strong> Weighted combination of MHC-I, MHC-II, B cell scores</li>
+              <li><strong>CTL/Th epitope count:</strong> Estimated number of immunogenic 9-mers</li>
             </ul>
           </div>
-          <div class="data-card output">
-            <h4>📤 Model Outputs (Predicted)</h4>
+
+          <div class="data-card output" style="border-left:4px solid #10b981;margin-top:1rem;">
+            <h4>📤 Predicted Outputs — Mechanistic Cascade</h4>
+            <p style="font-size:0.82rem;color:#4b5563;margin-bottom:0.5rem;">
+              Generated by parameterised equations from formulation inputs + ML epitope scores.
+              Coefficients are literature-derived, not statistically fitted.
+            </p>
             <ul>
-              <li><strong>Clinical Reactogenicity Score:</strong> Predicted safety / tolerability</li>
-              <li><strong>Vaccine Efficacy Estimate:</strong> Protection probability (%)</li>
-              <li><strong>Immune Durability:</strong> Months of expected protection</li>
-              <li><strong>T Helper Bias Profile:</strong> Th1/Th2/Th17/Tfh ratios</li>
+              <li><strong>Innate pathway scores:</strong> TLR7/8, TLR3, cGAS-STING, complement, inflammasome (0–1)</li>
+              <li><strong>DC programming:</strong> Maturation state, cytokine kinetics (TNF-α, IL-6, IL-12, IFN-α/β)</li>
+              <li><strong>T helper bias:</strong> Th1/Th2/Th17/Tfh polarisation ratios</li>
+              <li><strong>Antibody response:</strong> Magnitude, peak day, durability</li>
+              <li><strong>Memory quality:</strong> Long-term protection estimate (months)</li>
+              <li><strong>Reactogenicity / safety:</strong> Predicted tolerability score ± 95% CI</li>
             </ul>
           </div>
         </div>
         """, unsafe_allow_html=True)
+
+    st.markdown("""
+    <div class="content-container" style="padding-top:0;">
+      <div style="background:#fef3c7;border:1px solid #fde68a;border-radius:10px;
+           padding:0.9rem 1.2rem;font-size:0.82rem;color:#92400e;">
+        <strong>⚠️ Important distinction:</strong>
+        The innate and adaptive values shown in the Simulation Platform are
+        <em>computational predictions</em> derived from your molecular inputs using
+        parameterised equations. They are not experimental measurements.
+        The ML epitope predictions (MHC-I, T cell) are trained on IEDB data and
+        evaluated against independent holdout sets (human AUC 0.789 on post-2023 binding affinity assays).
+        All outputs carry 95% confidence intervals reflecting published inter-individual biological variability,
+        not model prediction uncertainty.
+        <strong>Epitrix is a research tool for hypothesis generation and comparative formulation analysis —
+        not for clinical decision-making.</strong>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1531,7 +2401,7 @@ def display_modeling_platform():
     st.markdown("""
     <div class="content-container">
       <div class="innovation-card">
-        <h2 class="section-title">🔬 Epitrix Mechanistic Simulation Platform</h2>
+        <h2 class="section-title">🔬 Epitrix Hybrid Simulation Platform</h2>
         <p class="section-subtitle">XGBoost epitope prediction (AUC 0.986) · Human &amp; mouse models · 95% confidence intervals · Formulation optimizer · Parameterised mechanistic simulation</p>
       </div>
       <div style="background:#fffbeb;border:1px solid #fde68a;border-left:4px solid #f59e0b;
@@ -1541,6 +2411,12 @@ def display_modeling_platform():
         AUC-ROC 0.970 for mouse). All other predictions (innate pathways, adaptive cascade,
         clinical outcomes) are parameterised <strong>mechanistic equations</strong> fitted to
         published experimental data — not trained ML models.
+        The efficacy equation for <strong>mRNA/DNA vaccines</strong> uses a
+        <strong>direct molecular formula</strong> calibrated to Phase 3 trial data:
+        E = f(TLR evasion, translation efficiency × modification level, antigen quality, pKa optimality).
+        ALC-0315 + m1Ψ → ~94% (BNT162b2/mRNA-1273 anchors); DOTAP + unmodified → ~47%.
+        <strong>Protein subunit vaccines</strong> use the cascade formula + per-adjuvant clinical boosts
+        (Shingrix/AS01B → ~97%; alum → ~60%; unadjuvanted → ~30%).
         All outputs include 95% confidence intervals. Results are hypothesis-generating only.
       </div>
     </div>
@@ -1583,17 +2459,78 @@ def molecular_input_module():
         st.markdown('<div class="mol-input-box"><h3>🧬 Nanoparticle Design Parameters</h3></div>',
                     unsafe_allow_html=True)
 
-        # ── Ionizable lipid selector with category grouping ───────────────────
-        lipid_names = list(ionizable_lipids_db.keys())
-        ionizable_lipid = st.selectbox(
-            "Ionizable Lipid:",
-            lipid_names,
-            format_func=lambda x: f"[{LIPID_CATEGORIES.get(x, '')}]  {x}"
+        # ── Vaccine type selector — FIRST, gates everything below ─────────────
+        st.markdown("#### 💉 Vaccine Platform")
+        vaccine_type = st.selectbox(
+            "Vaccine type:",
+            ['mRNA', 'DNA', 'Protein subunit'],
+            format_func=lambda x: {
+                'mRNA':             '🧬 mRNA (LNP-formulated)',
+                'DNA':              '🔵 DNA (plasmid / LNP)',
+                'Protein subunit':  '🟡 Protein subunit (adjuvanted)',
+            }[x],
+            key='vaccine_type'
         )
-        ld = ionizable_lipids_db[ionizable_lipid]
-        cat   = LIPID_CATEGORIES.get(ionizable_lipid, '')
-        color = CAT_COLORS.get(cat, '#6b7280')
+        VACCINE_INFO = {
+            'mRNA': (
+                '#ecfdf5', '#16a34a',
+                'TLR7/8 sensing of single-stranded RNA drives innate activation. '
+                'Nucleoside modifications (m1Ψ, s²U) reduce TLR evasion and improve translation efficiency. '
+                'cGAS-STING activated by dsRNA contaminants and particle geometry.'
+            ),
+            'DNA': (
+                '#eff6ff', '#2563eb',
+                'TLR9 recognises unmethylated CpG motifs in plasmid DNA. '
+                'cGAS-STING is the dominant innate sensing pathway for cytosolic DNA. '
+                'TLR7/8 contribution is low; nucleoside modifications do not apply.'
+            ),
+            'Protein subunit': (
+                '#fefce8', '#ca8a04',
+                'No nucleic acid innate sensing. Innate activation is driven entirely by '
+                'adjuvant choice and particle properties. LNP lipid composition, '
+                'formulation ratios, and nucleic acid modifications do not apply and are hidden below.'
+            ),
+        }
+        vc_bg, vc_col, vc_note = VACCINE_INFO[vaccine_type]
         st.markdown(f"""
+<div style="background:{vc_bg};border:1px solid {vc_col}40;border-left:4px solid {vc_col};
+     border-radius:8px;padding:0.6rem 0.9rem;margin-bottom:0.75rem;font-size:0.82rem;color:#374151;">
+  {vc_note}
+</div>""", unsafe_allow_html=True)
+
+        # ── LNP design — hidden for protein subunit ───────────────────────────
+        is_protein = vaccine_type == 'Protein subunit'
+
+        if is_protein:
+            # Protein vaccines have no LNP — set fixed neutral defaults used
+            # internally by run_integrated_prediction (low pKa, balanced ratios)
+            ionizable_lipid   = 'SM-102'   # neutral carrier placeholder only
+            ionizable_ratio   = 42
+            helper_ratio      = 16
+            helper_lipid      = 'DSPC'
+            cholesterol_ratio = 32
+            peg_lipid         = 'DMG-PEG2000'
+            peg_ratio         = 2
+            ld = ionizable_lipids_db[ionizable_lipid]
+            hl = helper_lipids_db.get(helper_lipid, {'membrane_rigidity': 0.9,
+                                                      'phase_transition_temp': 55,
+                                                      'notes': '', 'shedding_rate': 0.5})
+            pl = peg_lipids_db.get(peg_lipid, {'peg_mw': 2000, 'shedding_rate': 'fast',
+                                                'notes': ''})
+            st.info("🟡 LNP design parameters are not applicable for protein subunit vaccines. "
+                    "Adjuvant selection below is the primary design variable.")
+        else:
+            # ── Ionizable lipid selector ──────────────────────────────────────
+            lipid_names = list(ionizable_lipids_db.keys())
+            ionizable_lipid = st.selectbox(
+                "Ionizable Lipid:",
+                lipid_names,
+                format_func=lambda x: f"[{LIPID_CATEGORIES.get(x, '')}]  {x}"
+            )
+            ld = ionizable_lipids_db[ionizable_lipid]
+            cat   = LIPID_CATEGORIES.get(ionizable_lipid, '')
+            color = CAT_COLORS.get(cat, '#6b7280')
+            st.markdown(f"""
 <div style="background:#f8fafc;border:1px solid #e2e8f0;border-left:4px solid {color};
      border-radius:8px;padding:0.75rem 1rem;margin-bottom:0.75rem;">
   <span style="background:{color};color:white;font-size:0.7rem;font-weight:700;
@@ -1608,57 +2545,122 @@ def molecular_input_module():
 </div>
 """, unsafe_allow_html=True)
 
-        # ── Custom lipid override ─────────────────────────────────────────────
-        if ionizable_lipid == '⚙️ Custom Lipid':
-            st.markdown("**✏️ Define Custom Lipid Properties:**")
-            c1, c2 = st.columns(2)
-            with c1:
-                custom_pka = st.number_input("pKa:", min_value=4.0, max_value=10.0,
-                                             value=6.5, step=0.05)
-                custom_logp = st.number_input("LogP:", min_value=2.0, max_value=12.0,
-                                              value=7.5, step=0.1)
-            with c2:
-                custom_mw   = st.number_input("MW (g/mol):", min_value=300.0, max_value=1200.0,
-                                              value=680.0, step=1.0)
-                custom_bf   = st.number_input("Branching Factor:", min_value=0.5, max_value=5.0,
-                                              value=2.0, step=0.1)
-            # Patch the live dict so prediction engine picks up values
-            ionizable_lipids_db['⚙️ Custom Lipid']['pka']              = custom_pka
-            ionizable_lipids_db['⚙️ Custom Lipid']['logP']             = custom_logp
-            ionizable_lipids_db['⚙️ Custom Lipid']['molecular_weight'] = custom_mw
-            ionizable_lipids_db['⚙️ Custom Lipid']['branching_factor'] = custom_bf
+            # ── Custom lipid override ─────────────────────────────────────────
+            if ionizable_lipid == '⚙️ Custom Lipid':
+                st.markdown("**✏️ Define Custom Lipid Properties:**")
+                c1, c2 = st.columns(2)
+                with c1:
+                    custom_pka  = st.number_input("pKa:", min_value=4.0, max_value=10.0,
+                                                  value=6.5, step=0.05)
+                    custom_logp = st.number_input("LogP:", min_value=2.0, max_value=12.0,
+                                                  value=7.5, step=0.1)
+                with c2:
+                    custom_mw  = st.number_input("MW (g/mol):", min_value=300.0, max_value=1200.0,
+                                                 value=680.0, step=1.0)
+                    custom_bf  = st.number_input("Branching Factor:", min_value=0.5, max_value=5.0,
+                                                 value=2.0, step=0.1)
+                ionizable_lipids_db['⚙️ Custom Lipid']['pka']              = custom_pka
+                ionizable_lipids_db['⚙️ Custom Lipid']['logP']             = custom_logp
+                ionizable_lipids_db['⚙️ Custom Lipid']['molecular_weight'] = custom_mw
+                ionizable_lipids_db['⚙️ Custom Lipid']['branching_factor'] = custom_bf
 
-        # ── Helper lipid & PEG-lipid selectors ───────────────────────────────
-        st.markdown("#### 🧪 Excipient Selection")
-        ecol1, ecol2 = st.columns(2)
-        with ecol1:
-            helper_lipid = st.selectbox("Helper Lipid:", list(helper_lipids_db.keys()))
-            hl = helper_lipids_db[helper_lipid]
-            st.caption(f"Rigidity: {hl['membrane_rigidity']} | Tm: {hl['phase_transition_temp']}°C — {hl['notes']}")
-        with ecol2:
-            peg_lipid = st.selectbox("PEG-Lipid:", list(peg_lipids_db.keys()))
-            pl = peg_lipids_db[peg_lipid]
-            st.caption(f"PEG MW: {pl['peg_mw']} | Shedding: {pl['shedding_rate']} — {pl['notes']}")
+        # ── Adjuvant selector ─────────────────────────────────────────────────
+        st.markdown("#### 💊 Adjuvant Selection")
 
-        # ── Formulation ratios ────────────────────────────────────────────────
-        st.markdown("#### ⚗️ Formulation Ratios (mol%)")
-        ionizable_ratio   = st.slider("Ionizable Lipid:", 30, 60, 42)
-        helper_ratio      = st.slider("Helper Lipid:", 10, 40, 16)
-        cholesterol_ratio = st.slider("Cholesterol:", 20, 50, 32)
-        peg_ratio         = st.slider("PEG-Lipid:", 1, 5, 2)
-        total_mol = ionizable_ratio + helper_ratio + cholesterol_ratio + peg_ratio
-        bar_color = "#16a34a" if 95 <= total_mol <= 105 else "#dc2626"
-        st.markdown(
-            f'<div style="font-size:0.82rem;color:{bar_color};font-weight:600;">'
-            f'Total mol%: {total_mol}% {"✅" if 95 <= total_mol <= 105 else "⚠️ Typical LNP formulations sum to ~100 mol%"}'
-            f'</div>', unsafe_allow_html=True
+        # Filter adjuvants compatible with selected vaccine type
+        compatible = {k: v for k, v in ADJUVANTS.items()
+                      if vaccine_type in v['compatible']}
+
+        # Group by class for display
+        def _adj_label(name):
+            a = ADJUVANTS[name]
+            tier_label, _ = ADJUVANT_CONFIDENCE[a['confidence']]
+            return f"[{a['class']}] {name}  —  {tier_label}"
+
+        adjuvant_name = st.selectbox(
+            "Adjuvant:",
+            list(compatible.keys()),
+            format_func=_adj_label,
+            key='adjuvant_selector'
         )
+        adj = ADJUVANTS[adjuvant_name]
+        tier_label, tier_color = ADJUVANT_CONFIDENCE[adj['confidence']]
 
-        # ── Nucleic acid modifications ────────────────────────────────────────
-        st.markdown("#### 🧬 Nucleic Acid Modifications")
-        modification = st.selectbox("Base Modification:", list(mods_db.keys()))
-        md = mods_db[modification]
+        # Info box
+        conf_bg = {'approved': '#f0fdf4', 'clinical': '#eff6ff',
+                   'preclinical': '#fffbeb', 'research': '#fef2f2'}[adj['confidence']]
         st.markdown(f"""
+<div style="background:{conf_bg};border:1px solid {tier_color}40;
+     border-left:4px solid {tier_color};border-radius:8px;
+     padding:0.6rem 0.9rem;margin-bottom:0.75rem;font-size:0.82rem;color:#374151;">
+  <span style="background:{tier_color};color:white;font-size:0.7rem;font-weight:700;
+        padding:2px 8px;border-radius:20px;text-transform:uppercase;">{tier_label}</span>
+  &nbsp;&nbsp;<strong>Class:</strong> {adj['class']}
+  <br><span style="margin-top:0.4rem;display:block;">{adj['notes']}</span>
+</div>""", unsafe_allow_html=True)
+
+        # Show pathway scores only if not None
+        if adjuvant_name != 'None (formulation only)':
+            sc = adj['scores']
+            def _bar(v):
+                pct = int(v * 100)
+                col = '#16a34a' if v < 0.2 else '#2563eb' if v < 0.5 else '#dc2626'
+                return (f'<div style="display:inline-block;width:{pct}px;max-width:80px;'
+                        f'height:8px;background:{col};border-radius:4px;'
+                        f'vertical-align:middle;margin-right:4px;"></div>'
+                        f'<span style="font-size:0.75rem;color:#374151;">{v:.2f}</span>')
+            st.markdown(f"""
+<div style="font-size:0.79rem;color:#374151;background:#f9fafb;
+     border:1px solid #e5e7eb;border-radius:8px;padding:0.6rem 0.9rem;
+     margin-bottom:0.5rem;">
+  <strong>Pathway scores (literature-grounded ordinal → 0–1):</strong><br>
+  TLR7/8: {_bar(sc['TLR7_8'])} &nbsp;
+  TLR3: {_bar(sc['TLR3'])} &nbsp;
+  cGAS-STING: {_bar(sc['cGAS_STING'])} &nbsp;
+  Complement: {_bar(sc['Complement'])} &nbsp;
+  Inflammasome: {_bar(sc['Inflammasome'])}
+  <br><span style="color:#9ca3af;font-size:0.72rem;">
+  Scores are parameterised approximations — not direct experimental measurements.
+  See notes above for supporting literature.</span>
+</div>""", unsafe_allow_html=True)
+        if not is_protein:
+            st.markdown("#### 🧪 Excipient Selection")
+            ecol1, ecol2 = st.columns(2)
+            with ecol1:
+                helper_lipid = st.selectbox("Helper Lipid:", list(helper_lipids_db.keys()))
+                hl = helper_lipids_db[helper_lipid]
+                st.caption(f"Rigidity: {hl['membrane_rigidity']} | Tm: {hl['phase_transition_temp']}°C — {hl['notes']}")
+            with ecol2:
+                peg_lipid = st.selectbox("PEG-Lipid:", list(peg_lipids_db.keys()))
+                pl = peg_lipids_db[peg_lipid]
+                st.caption(f"PEG MW: {pl['peg_mw']} | Shedding: {pl['shedding_rate']} — {pl['notes']}")
+
+            # ── Formulation ratios ────────────────────────────────────────────
+            st.markdown("#### ⚗️ Formulation Ratios (mol%)")
+            ionizable_ratio   = st.slider("Ionizable Lipid:", 30, 60, 42)
+            helper_ratio      = st.slider("Helper Lipid:", 10, 40, 16)
+            cholesterol_ratio = st.slider("Cholesterol:", 20, 50, 32)
+            peg_ratio         = st.slider("PEG-Lipid:", 1, 5, 2)
+            total_mol = ionizable_ratio + helper_ratio + cholesterol_ratio + peg_ratio
+            bar_color = "#16a34a" if 95 <= total_mol <= 105 else "#dc2626"
+            st.markdown(
+                f'<div style="font-size:0.82rem;color:{bar_color};font-weight:600;">'
+                f'Total mol%: {total_mol}% {"✅" if 95 <= total_mol <= 105 else "⚠️ Typical LNP formulations sum to ~100 mol%"}'
+                f'</div>', unsafe_allow_html=True
+            )
+
+        # ── Nucleic acid modifications (hidden for protein subunit) ──────────
+        if is_protein:
+            modification       = 'Unmodified'
+            modification_level = 0
+        else:
+            st.markdown("#### 🧬 Nucleic Acid Modifications")
+            if vaccine_type == 'DNA':
+                st.caption("DNA vaccines use unmethylated CpG motifs for TLR9 activation. "
+                           "The modification options below reflect available backbone chemical modifications.")
+            modification = st.selectbox("Base Modification:", list(mods_db.keys()))
+            md = mods_db[modification]
+            st.markdown(f"""
 <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;
      padding:0.6rem 0.9rem;margin-bottom:0.75rem;font-size:0.82rem;">
   <strong>TLR Evasion:</strong> {md['tlr_evasion']:.0%} &nbsp;|&nbsp;
@@ -1668,7 +2670,8 @@ def molecular_input_module():
   <br><span style="color:#6b7280;font-style:italic;">{md.get('notes', '')}</span>
 </div>
 """, unsafe_allow_html=True)
-        modification_level = st.slider("Modification Level (%):", 0, 100, 80)
+            modification_level = st.slider("Modification Level (%):", 0, 100, 80)
+        md = mods_db[modification]
 
         # ── Antigen Sequence ──────────────────────────────────────────────────
         st.markdown("#### 🎯 Antigen Sequence Input")
@@ -1751,50 +2754,125 @@ def molecular_input_module():
         else:
             st.caption("No antigen sequence provided — prediction will use default antigenicity values.")
 
+        # ── Run label input ──────────────────────────────────────────────────
+        _adj_short = adjuvant_name.split(' (')[0][:18] if adjuvant_name != 'None (formulation only)' else 'No adj'
+        _ant_short = antigen_preset[:18] if antigen_preset != '— Enter custom sequence —' else 'Custom'
+        run_label_input = st.text_input(
+            "Run label (optional):",
+            value=f"{vaccine_type} / {ionizable_lipid} / {_adj_short} / {_ant_short}",
+            help="Name this run so you can identify it in the comparison table and downloaded files."
+        )
+
         if st.button("🚀 Predict Immune Cascade", type="primary"):
             with st.spinner("Running mechanistic cascade..."):
                 r = run_integrated_prediction(
                     ionizable_lipid, ionizable_ratio, helper_ratio,
                     cholesterol_ratio, peg_ratio, modification, modification_level,
-                    antigen_features=ag_features
+                    antigen_features=ag_features,
+                    vaccine_type=vaccine_type,
+                    adjuvant_name=adjuvant_name
                 )
+
+            import datetime
+            run_id = f"RUN-{len(st.session_state.get('run_registry', [])) + 1:03d}"
+            timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
             r['selected_helper']   = helper_lipid
             r['selected_peg']      = peg_lipid
             r['helper_rigidity']   = hl['membrane_rigidity']
             r['peg_shedding']      = pl['shedding_rate']
             r['antigen_name']      = antigen_preset if antigen_preset != '— Enter custom sequence —' else 'Custom'
             r['species']           = species
+            r['vaccine_type']      = vaccine_type
+            r['adjuvant']          = adjuvant_name
+            r['_run_id']           = run_id
+            r['_run_label']        = run_label_input.strip() or run_id
+            r['_timestamp']        = timestamp
+
+            # Full parameter record stored with result
+            r['_params'] = {
+                'run_id':              run_id,
+                'label':               run_label_input.strip() or run_id,
+                'timestamp':           timestamp,
+                'vaccine_type':        vaccine_type,
+                'adjuvant':            adjuvant_name,
+                'adjuvant_class':      ADJUVANTS[adjuvant_name]['class'],
+                'adjuvant_confidence': ADJUVANTS[adjuvant_name]['confidence'],
+                'ionizable_lipid':    ionizable_lipid,
+                'lipid_pka':          ld['pka'],
+                'lipid_logP':         ld['logP'],
+                'lipid_mw':           ld['molecular_weight'],
+                'lipid_branching':    ld['branching_factor'],
+                'ionizable_ratio':    ionizable_ratio,
+                'helper_lipid':       helper_lipid,
+                'helper_ratio':       helper_ratio,
+                'cholesterol_ratio':  cholesterol_ratio,
+                'peg_lipid':          peg_lipid,
+                'peg_ratio':          peg_ratio,
+                'modification':       modification,
+                'modification_level': modification_level,
+                'tlr_evasion':        md['tlr_evasion'],
+                'translation_eff':    md['translation_eff'],
+                'antigen':            antigen_preset if antigen_preset != '— Enter custom sequence —' else 'Custom',
+                'antigen_seq_50':     (antigen_sequence or '')[:50],
+                'species':            species,
+                'antigenicity':       ag_features.get('antigenicity', 'n/a') if ag_features else 'n/a',
+                'mhc1_score':         ag_features.get('mhc1_score', 'n/a') if ag_features else 'n/a',
+                'ctl_epitopes':       ag_features.get('ctl_epitopes_est', 'n/a') if ag_features else 'n/a',
+            }
+
             st.session_state['cascade_results'] = r
             st.session_state['antigen_features_cache'] = ag_features
-            st.success(f"✅ Prediction complete — deterministic. Seed: `{r['_seed']}`")
+
+            # Append to run registry
+            if 'run_registry' not in st.session_state:
+                st.session_state['run_registry'] = []
+            st.session_state['run_registry'].append(r)
+
+            st.success(f"✅ {run_id} saved: \"{r['_run_label']}\"  |  Seed: `{r['_seed']}`")
             st.caption("🔒 Identical inputs always produce identical results. 95% CI bands shown on all charts.")
 
     with col2:
         st.markdown('<div class="mol-input-box"><h3>📊 Predicted Molecular Profile</h3></div>',
                     unsafe_allow_html=True)
         if 'cascade_results' in st.session_state:
-            r = st.session_state['cascade_results']
+            r  = st.session_state['cascade_results']
             ci = r.get('confidence_intervals', {})
+            _r_is_protein = r.get('vaccine_type') == 'Protein subunit'
 
-            st.markdown("#### 🔬 Physicochemical Properties")
-            pc1, pc2 = st.columns(2)
-            with pc1:
-                lo, hi = ci.get('particle_size', (0,0))
-                st.metric("Particle Size", f"{r['particle_size']:.0f} nm",
-                          delta=f"95% CI: {lo:.0f}–{hi:.0f} nm", delta_color="off")
-                st.metric("Zeta Potential", f"{r['zeta_potential']:.1f} mV")
-            with pc2:
-                st.metric("Encapsulation Eff.", f"{r['encapsulation_eff']:.2f}")
-                st.metric("Membrane Fluidity",  f"{r['membrane_fluidity']:.2f}")
+            if not _r_is_protein:
+                st.markdown("#### 🔬 Physicochemical Properties")
+                pc1, pc2 = st.columns(2)
+                with pc1:
+                    lo, hi = ci.get('particle_size', (0, 0))
+                    st.metric("Particle Size", f"{r['particle_size']:.0f} nm",
+                              delta=f"95% CI: {lo:.0f}–{hi:.0f} nm", delta_color="off")
+                    st.metric("Zeta Potential", f"{r['zeta_potential']:.1f} mV")
+                with pc2:
+                    st.metric("Encapsulation Eff.", f"{r['encapsulation_eff']:.2f}")
+                    st.metric("Membrane Fluidity",  f"{r['membrane_fluidity']:.2f}")
 
-            # Excipient badges
-            if 'selected_helper' in r:
-                st.markdown(f"""
+                # Excipient badges
+                if 'selected_helper' in r:
+                    st.markdown(f"""
 <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;
      padding:0.6rem 1rem;margin:0.5rem 0;font-size:0.82rem;color:#111827;">
   <strong>Helper:</strong> {r['selected_helper']}
   &nbsp;(rigidity {r.get('helper_rigidity','—')}) &nbsp;|&nbsp;
   <strong>PEG:</strong> {r['selected_peg']} &nbsp;(shedding: {r.get('peg_shedding','—')})
+</div>""", unsafe_allow_html=True)
+            else:
+                # For protein vaccines show adjuvant summary instead
+                adj = r.get('adjuvant', 'None (formulation only)')
+                adj_data = ADJUVANTS.get(adj, {})
+                _, adj_col = ADJUVANT_CONFIDENCE.get(adj_data.get('confidence', ''), ('', '#6b7280'))
+                st.markdown(f"""
+<div style="background:#faf5ff;border:1px solid #e9d5ff;border-left:4px solid {adj_col};
+     border-radius:8px;padding:0.7rem 1rem;margin:0.5rem 0;font-size:0.82rem;color:#374151;">
+  <strong>💊 Adjuvant:</strong>
+  <span style="color:{adj_col};font-weight:600;">{adj}</span><br>
+  <strong>Class:</strong> {adj_data.get('class','—')} &nbsp;|&nbsp;
+  <strong>Status:</strong> {ADJUVANT_CONFIDENCE.get(adj_data.get('confidence',''),('—',''))[0]}
 </div>""", unsafe_allow_html=True)
 
             # Antigen summary badge
@@ -1817,8 +2895,10 @@ def molecular_input_module():
 </div>""", unsafe_allow_html=True)
 
             st.markdown("#### 🔥 Predicted Innate Activation")
-            pathways = list(r['innate_prediction'].keys())
-            scores   = list(r['innate_prediction'].values())
+            _inn_preview = {k: v for k, v in r['innate_prediction'].items()
+                            if not k.startswith('_')}
+            pathways = list(_inn_preview.keys())
+            scores   = list(_inn_preview.values())
             fig = go.Figure(go.Scatterpolar(
                 r=scores, theta=pathways, fill='toself',
                 name='Innate Activation',
@@ -1840,6 +2920,45 @@ def molecular_input_module():
 
 
 # ── TAB 2 ────────────────────────────────────────────────────────────────────
+def _run_context_banner():
+    """Render a compact banner showing the vaccine type, adjuvant, and run label
+    for the currently displayed cascade result. Call at the top of every result tab."""
+    r = st.session_state.get('cascade_results', {})
+    if not r:
+        return
+    vtype    = r.get('vaccine_type', 'mRNA')
+    adjuvant = r.get('adjuvant', 'None (formulation only)')
+    label    = r.get('_run_label', '')
+    run_id   = r.get('_run_id', '')
+    ts       = r.get('_timestamp', '')
+
+    vtype_colors = {
+        'mRNA':            ('#ecfdf5', '#16a34a'),
+        'DNA':             ('#eff6ff', '#2563eb'),
+        'Protein subunit': ('#fefce8', '#ca8a04'),
+    }
+    bg, col = vtype_colors.get(vtype, ('#f9fafb', '#6b7280'))
+
+    adj_data = ADJUVANTS.get(adjuvant, {})
+    adj_conf = adj_data.get('confidence', '')
+    _, adj_col = ADJUVANT_CONFIDENCE.get(adj_conf, ('', '#6b7280'))
+
+    st.markdown(f"""
+<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;
+     padding:0.55rem 1rem;margin-bottom:0.85rem;font-size:0.8rem;
+     color:#374151;display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+  <span style="font-weight:700;color:#111827;">📋 Showing:</span>
+  <span style="background:{bg};color:{col};border:1px solid {col}40;
+        padding:2px 9px;border-radius:20px;font-weight:600;">{vtype}</span>
+  <span style="background:#f0f9ff;color:{adj_col};border:1px solid {adj_col}40;
+        padding:2px 9px;border-radius:20px;font-weight:600;">
+    💊 {adjuvant[:40]}{'…' if len(adjuvant)>40 else ''}
+  </span>
+  <span style="color:#6b7280;">{run_id}{' · ' + label if label and label != run_id else ''}</span>
+  <span style="color:#9ca3af;margin-left:auto;">{ts}</span>
+</div>""", unsafe_allow_html=True)
+
+
 def innate_prediction_module():
     st.markdown('<div class="content-container">', unsafe_allow_html=True)
 
@@ -1852,6 +2971,8 @@ def innate_prediction_module():
       Shaded bands represent published inter-individual biological variability (95% CI).
     </div>
     """, unsafe_allow_html=True)
+
+    _run_context_banner()
 
     if 'cascade_results' in st.session_state:
         r   = st.session_state['cascade_results']
@@ -1870,8 +2991,10 @@ def innate_prediction_module():
 
         # ── Innate radar with CI error bars (bar chart proxy) ─────────────────
         with col_r:
-            pathways = list(inn.keys())
-            scores   = list(inn.values())
+            # Filter out private keys (e.g. _TLR9 stored for DNA vaccine reference)
+            inn_display = {k: v for k, v in inn.items() if not k.startswith('_')}
+            pathways = list(inn_display.keys())
+            scores   = list(inn_display.values())
             lows  = [ci.get(f'innate_{p}', (s*0.7, s*1.3))[0] for p, s in zip(pathways, scores)]
             highs = [ci.get(f'innate_{p}', (s*0.7, s*1.3))[1] for p, s in zip(pathways, scores)]
             err_minus = [max(0, s - lo) for s, lo in zip(scores, lows)]
@@ -1884,8 +3007,18 @@ def innate_prediction_module():
                              array=err_plus, arrayminus=err_minus,
                              color='#374151', thickness=2, width=6),
                 marker_color=['#ef4444','#f59e0b','#7c3aed','#06b6d4','#10b981'],
-                text=[f"{s:.2f}" for s in scores], textposition='outside',
-                textfont=dict(color='#111827', size=11),
+                showlegend=False,
+            ))
+            # Separate scatter trace for labels — placed at 50% of bar height,
+            # completely clear of the error bar which sits at 100%
+            fig_r.add_trace(go.Scatter(
+                x=pathways,
+                y=[s * 0.5 for s in scores],
+                mode='text',
+                text=[f"<b>{s:.2f}</b>" for s in scores],
+                textfont=dict(color='white', size=13, family='Arial Black'),
+                showlegend=False,
+                hoverinfo='skip',
             ))
             fig_r.update_layout(
                 title=dict(text="Innate Pathway Activation + 95% CI",
@@ -1979,6 +3112,8 @@ def innate_prediction_module():
 # ── TAB 3 ────────────────────────────────────────────────────────────────────
 def adaptive_outcomes_module():
     st.markdown('<div class="content-container">', unsafe_allow_html=True)
+
+    _run_context_banner()
 
     if 'cascade_results' in st.session_state:
         r = st.session_state['cascade_results']
@@ -2258,105 +3393,195 @@ def adaptive_outcomes_module():
         summ_c4.metric("Protection",   f"{dur_adj:.1f} mo",
                         delta=f"CI {dur_lo:.1f}–{dur_hi:.1f}", delta_color="off")
 
-        # ── Export / Save run ─────────────────────────────────────────────────
-        st.markdown("#### 💾 Export & Compare")
-        exp_c1, exp_c2 = st.columns(2)
+        # ── Run Registry and Comparison ──────────────────────────────────────
+        st.markdown("#### 📋 Run Registry")
 
-        with exp_c1:
-            if st.button("📥 Save this run for comparison", key='save_run'):
-                saved = st.session_state.get('saved_runs', [])
-                run_label = (
-                    f"{r.get('_formulation', {}).get('lipid', 'Custom')} · "
-                    f"{population} · "
-                    f"Eff {eff_adj:.1f}%"
+        registry = st.session_state.get('run_registry', [])
+
+        if not registry:
+            st.info("No runs saved yet. Set your parameters, label your run, and click Predict.")
+        else:
+            # Registry summary table
+            import pandas as _pd
+            reg_rows = []
+            for rx in registry:
+                p = rx.get('_params', {})
+                cp = rx.get('clinical_predictions', {})
+                inn = rx.get('innate_prediction', {})
+                th = rx.get('adaptive_prediction', {}).get('th_bias', {})
+                reg_rows.append({
+                    'ID':           rx.get('_run_id', ''),
+                    'Label':        rx.get('_run_label', ''),
+                    'Vaccine type': rx.get('vaccine_type', 'mRNA'),
+                    'Adjuvant':     rx.get('adjuvant', 'None'),
+                    'Lipid':        p.get('ionizable_lipid', ''),
+                    'Modification': p.get('modification', '')[:22],
+                    'Antigen':      p.get('antigen', ''),
+                    'Species':      p.get('species', ''),
+                    'Efficacy %':   f"{cp.get('efficacy', 0):.1f}",
+                    'Safety':       f"{cp.get('safety', 0):.2f}",
+                    'TLR7/8':       f"{inn.get('TLR7_8', 0):.2f}",
+                    'Th1':          f"{th.get('Th1', 0):.2f}",
+                    'Tfh':          f"{th.get('Tfh', 0):.2f}",
+                    'Timestamp':    rx.get('_timestamp', ''),
+                })
+            reg_df = _pd.DataFrame(reg_rows)
+            st.dataframe(reg_df, use_container_width=True, hide_index=True)
+
+            rc1, rc2 = st.columns(2)
+            with rc1:
+                if st.button("🗑️ Clear all runs", key='clear_registry'):
+                    st.session_state['run_registry'] = []
+                    st.session_state.pop('cascade_results', None)
+                    st.rerun()
+            with rc2:
+                # Excel download with full parameter record
+                import io as _io
+                try:
+                    import openpyxl as _openpyxl
+                    xl_buf = _io.BytesIO()
+                    with _pd.ExcelWriter(xl_buf, engine='openpyxl') as writer:
+                        # Sheet 1: Summary comparison
+                        reg_df.to_excel(writer, sheet_name='Summary', index=False)
+
+                        # Sheet 2: Full parameters per run
+                        param_rows = []
+                        for rx in registry:
+                            p = rx.get('_params', {})
+                            cp = rx.get('clinical_predictions', {})
+                            inn = rx.get('innate_prediction', {})
+                            th = rx.get('adaptive_prediction', {}).get('th_bias', {})
+                            ci = rx.get('confidence_intervals', {})
+                            eff_lo, eff_hi = ci.get('efficacy', (0, 0))
+                            param_rows.append({
+                                # Identity
+                                'run_id':               p.get('run_id', ''),
+                                'label':                p.get('label', ''),
+                                'timestamp':            p.get('timestamp', ''),
+                                'vaccine_type':         p.get('vaccine_type', 'mRNA'),
+                                'adjuvant':             p.get('adjuvant', 'None'),
+                                'adjuvant_class':       p.get('adjuvant_class', ''),
+                                'adjuvant_confidence':  p.get('adjuvant_confidence', ''),
+                                # LNP inputs
+                                'ionizable_lipid':      p.get('ionizable_lipid', ''),
+                                'lipid_pka':            p.get('lipid_pka', ''),
+                                'lipid_logP':           p.get('lipid_logP', ''),
+                                'lipid_mw_g_mol':       p.get('lipid_mw', ''),
+                                'lipid_branching':      p.get('lipid_branching', ''),
+                                'ionizable_ratio_mol%': p.get('ionizable_ratio', ''),
+                                'helper_lipid':         p.get('helper_lipid', ''),
+                                'helper_ratio_mol%':    p.get('helper_ratio', ''),
+                                'cholesterol_ratio_mol%': p.get('cholesterol_ratio', ''),
+                                'peg_lipid':            p.get('peg_lipid', ''),
+                                'peg_ratio_mol%':       p.get('peg_ratio', ''),
+                                # Nucleic acid
+                                'modification':         p.get('modification', ''),
+                                'modification_level_%': p.get('modification_level', ''),
+                                'tlr_evasion':          p.get('tlr_evasion', ''),
+                                'translation_eff':      p.get('translation_eff', ''),
+                                # Antigen
+                                'antigen':              p.get('antigen', ''),
+                                'antigen_seq_50chars':  p.get('antigen_seq_50', ''),
+                                'species':              p.get('species', ''),
+                                'antigenicity':         p.get('antigenicity', ''),
+                                'mhc1_score':           p.get('mhc1_score', ''),
+                                'ctl_epitopes_est':     p.get('ctl_epitopes', ''),
+                                # Innate outputs
+                                'TLR7_8':               round(inn.get('TLR7_8', 0), 3),
+                                'TLR3':                 round(inn.get('TLR3', 0), 3),
+                                'cGAS_STING':           round(inn.get('cGAS_STING', 0), 3),
+                                'Complement':           round(inn.get('Complement', 0), 3),
+                                'Inflammasome':         round(inn.get('Inflammasome', 0), 3),
+                                'DC_maturation':        round(inn.get('DC_maturation', 0), 3),
+                                # Adaptive outputs
+                                'Th1':                  round(th.get('Th1', 0), 3),
+                                'Th2':                  round(th.get('Th2', 0), 3),
+                                'Th17':                 round(th.get('Th17', 0), 3),
+                                'Tfh':                  round(th.get('Tfh', 0), 3),
+                                'memory_quality':       round(rx.get('adaptive_prediction', {}).get('memory_quality', 0), 3),
+                                'ab_magnitude':         round(rx.get('adaptive_prediction', {}).get('ab_magnitude', 0), 3),
+                                # Clinical outputs
+                                'efficacy_%':           round(cp.get('efficacy', 0), 2),
+                                'efficacy_CI_lo':       round(eff_lo, 2),
+                                'efficacy_CI_hi':       round(eff_hi, 2),
+                                'safety':               round(cp.get('safety', 0), 3),
+                                'reactogenicity':       round(cp.get('reactogenicity', 0), 3),
+                                'duration_months':      round(cp.get('duration_months', 0), 1),
+                                'seed':                 rx.get('_seed', ''),
+                            })
+                        _pd.DataFrame(param_rows).to_excel(writer, sheet_name='Full Parameters', index=False)
+
+                    xl_buf.seek(0)
+                    st.download_button(
+                        "⬇️ Download run registry (.xlsx)",
+                        data=xl_buf.getvalue(),
+                        file_name=f"epitrix_runs_{len(registry)}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    )
+                except ImportError:
+                    # Fallback to CSV if openpyxl not available
+                    csv_buf = _io.StringIO()
+                    _pd.DataFrame(reg_rows).to_csv(csv_buf, index=False)
+                    st.download_button(
+                        "⬇️ Download run registry (.csv)",
+                        data=csv_buf.getvalue(),
+                        file_name=f"epitrix_runs_{len(registry)}.csv",
+                        mime="text/csv",
+                    )
+
+            # Comparison chart — shown when 2+ runs saved
+            if len(registry) >= 2:
+                st.markdown("#### 📊 Run Comparison")
+
+                labels_r = [rx.get('_run_label', rx.get('_run_id', '')) for rx in registry]
+                metrics_map = {
+                    'Efficacy (%)':       [rx.get('clinical_predictions', {}).get('efficacy', 0) for rx in registry],
+                    'Safety (×100)':      [rx.get('clinical_predictions', {}).get('safety', 0) * 100 for rx in registry],
+                    'TLR7/8 (×100)':      [rx.get('innate_prediction', {}).get('TLR7_8', 0) * 100 for rx in registry],
+                    'Th1 (×100)':         [rx.get('adaptive_prediction', {}).get('th_bias', {}).get('Th1', 0) * 100 for rx in registry],
+                    'Tfh (×100)':         [rx.get('adaptive_prediction', {}).get('th_bias', {}).get('Tfh', 0) * 100 for rx in registry],
+                    'Memory (×100)':      [rx.get('adaptive_prediction', {}).get('memory_quality', 0) * 100 for rx in registry],
+                }
+
+                metric_choice = st.multiselect(
+                    "Metrics to compare:",
+                    list(metrics_map.keys()),
+                    default=['Efficacy (%)', 'Safety (×100)', 'TLR7/8 (×100)', 'Th1 (×100)'],
+                    key='compare_metrics'
                 )
-                saved.append({
-                    'label':      run_label,
-                    'efficacy':   eff_adj,
-                    'safety':     saf_adj,
-                    'reactogenicity': rea_adj,
-                    'duration':   dur_adj,
-                    'eff_ci':     (eff_lo, eff_hi),
-                    'population': population,
-                    'th_bias':    r['adaptive_prediction']['th_bias'],
-                    'innate':     r['innate_prediction'],
-                    'seed':       r['_seed'],
-                })
-                st.session_state['saved_runs'] = saved
-                st.success(f"✅ Run saved: \"{run_label}\"")
 
-        saved_runs = st.session_state.get('saved_runs', [])
-        with exp_c2:
-            if saved_runs and st.button("🗑️ Clear saved runs", key='clear_runs'):
-                st.session_state['saved_runs'] = []
-                st.rerun()
-
-        if len(saved_runs) >= 2:
-            st.markdown("##### 📊 Saved Runs Comparison")
-            labels_s  = [s['label']        for s in saved_runs]
-            effs_s    = [s['efficacy']      for s in saved_runs]
-            safs_s    = [s['safety']        for s in saved_runs]
-            durs_s    = [s['duration']      for s in saved_runs]
-            eff_lo_s  = [s['eff_ci'][0]     for s in saved_runs]
-            eff_hi_s  = [s['eff_ci'][1]     for s in saved_runs]
-
-            fig_cmp = go.Figure()
-            fig_cmp.add_trace(go.Bar(
-                name='Efficacy %', x=labels_s, y=effs_s,
-                error_y=dict(type='data', symmetric=False,
-                             array=[h-e for h,e in zip(eff_hi_s, effs_s)],
-                             arrayminus=[e-l for e,l in zip(effs_s, eff_lo_s)]),
-                marker_color='#2563eb',
-                text=[f"{v:.1f}%" for v in effs_s], textposition='outside'
-            ))
-            fig_cmp.add_trace(go.Bar(
-                name='Safety %', x=labels_s, y=safs_s,
-                marker_color='#10b981',
-                text=[f"{v:.1f}%" for v in safs_s], textposition='outside'
-            ))
-            fig_cmp.add_trace(go.Bar(
-                name='Duration (mo)', x=labels_s, y=durs_s,
-                marker_color='#f59e0b',
-                text=[f"{v:.1f}" for v in durs_s], textposition='outside'
-            ))
-            fig_cmp.update_layout(
-                barmode='group', height=380,
-                yaxis=dict(title=dict(text='Value', font=dict(color='#111827')),
-                           tickfont=dict(color='#111827'), range=[0, 120]),
-                xaxis=dict(tickfont=dict(color='#111827', size=9)),
-                margin=dict(t=30, b=80, l=50, r=20),
-                legend=dict(font=dict(color='#111827'))
-            )
-            _light_fig(fig_cmp)
-            st.plotly_chart(fig_cmp, use_container_width=True)
-
-            # CSV export
-            import io, csv as _csv
-            buf = io.StringIO()
-            writer = _csv.DictWriter(buf, fieldnames=[
-                'label','population','efficacy','eff_ci_lo','eff_ci_hi',
-                'safety','reactogenicity','duration_months','seed'
-            ])
-            writer.writeheader()
-            for s in saved_runs:
-                writer.writerow({
-                    'label': s['label'], 'population': s['population'],
-                    'efficacy': f"{s['efficacy']:.2f}",
-                    'eff_ci_lo': f"{s['eff_ci'][0]:.2f}",
-                    'eff_ci_hi': f"{s['eff_ci'][1]:.2f}",
-                    'safety': f"{s['safety']:.2f}",
-                    'reactogenicity': f"{s['reactogenicity']:.3f}",
-                    'duration_months': f"{s['duration']:.1f}",
-                    'seed': s['seed'],
-                })
-            st.download_button(
-                "⬇️ Download comparison CSV",
-                data=buf.getvalue(),
-                file_name="epitrix_comparison.csv",
-                mime="text/csv",
-            )
-        elif len(saved_runs) == 1:
-            st.caption("ℹ️ Save at least one more run to enable comparison chart.")
+                if metric_choice:
+                    COLORS = ['#2563eb','#10b981','#f59e0b','#ef4444','#7c3aed','#0891b2','#d97706','#16a34a']
+                    fig_reg = go.Figure()
+                    for mi, metric in enumerate(metric_choice):
+                        vals = metrics_map[metric]
+                        fig_reg.add_trace(go.Bar(
+                            name=metric,
+                            x=labels_r,
+                            y=vals,
+                            marker_color=COLORS[mi % len(COLORS)],
+                            text=[f"{v:.1f}" for v in vals],
+                            textposition='outside',
+                            textfont=dict(size=10),
+                        ))
+                    fig_reg.update_layout(
+                        barmode='group',
+                        height=420,
+                        yaxis=dict(
+                            title=dict(text='Value', font=dict(color='#111827')),
+                            tickfont=dict(color='#111827'),
+                            range=[0, 115],
+                        ),
+                        xaxis=dict(
+                            tickfont=dict(color='#111827', size=10),
+                            tickangle=-20,
+                        ),
+                        margin=dict(t=30, b=100, l=50, r=20),
+                        legend=dict(font=dict(color='#111827', size=10)),
+                    )
+                    _light_fig(fig_reg)
+                    st.plotly_chart(fig_reg, use_container_width=True)
+                    st.caption("All scores normalised to 0-100 scale for comparison. Safety and TLR7/8 multiplied by 100 from their native 0-1 scale.")
 
     else:
         st.info("Run molecular prediction first (🔬 Molecular Input tab).")
@@ -2367,6 +3592,8 @@ def adaptive_outcomes_module():
 # ── TAB 4 ────────────────────────────────────────────────────────────────────
 def temporal_dynamics_module():
     st.markdown('<div class="content-container">', unsafe_allow_html=True)
+
+    _run_context_banner()
 
     st.markdown("""
     <div class="innovation-card">
@@ -2469,6 +3696,8 @@ def temporal_dynamics_module():
 # ── TAB 5 — EPITOPE ANALYSIS ──────────────────────────────────────────────────
 def epitope_analysis_module():
     st.markdown('<div class="content-container">', unsafe_allow_html=True)
+
+    _run_context_banner()
 
     st.markdown("""
     <div class="innovation-card">
@@ -2718,14 +3947,19 @@ trained <code>models/</code> directory alongside <code>app.py</code>.</em>
 def formulation_optimizer_module():
     st.markdown('<div class="content-container">', unsafe_allow_html=True)
 
-    st.markdown("""
+    _run_context_banner()
+
+    st.markdown(f"""
     <div class="innovation-card">
       <h3 style="font-size:1.25rem;font-weight:700;color:#111827;margin:0 0 0.4rem;">
         ⚗️ Formulation Optimizer
       </h3>
       <p style="color:#4b5563;margin:0;font-size:0.9rem;">
-        Sweeps 720 formulation combinations (6 lipids × 4 ionizable ratios × 3 cholesterol ×
-        3 PEG × 5 modifications) and ranks by your chosen objective.
+        <strong>mRNA / DNA vaccines:</strong> sweeps 720 combinations
+        (6 lipids × 4 ionizable ratios × 3 cholesterol × 3 PEG × 5 modifications)
+        and ranks by your chosen objective.<br>
+        <strong>Protein subunit vaccines:</strong> sweeps adjuvant × formulation vehicle combinations
+        — the biologically relevant design space for protein vaccines.
         All predictions are deterministic — same antigen always returns the same ranking.
       </p>
     </div>
@@ -2759,42 +3993,63 @@ def formulation_optimizer_module():
         else:
             st.caption("ℹ️ No antigen loaded. Run the Molecular Input tab first, or optimizer will use default antigenicity values.")
 
-        run_opt = st.button("🚀 Run Optimizer (720 formulations)", type="primary", key='opt_run')
+        # Read vaccine_type and adjuvant from the last run in session state
+        last_vtype   = st.session_state.get('cascade_results', {}).get('vaccine_type', 'mRNA')
+        last_adjuvant = st.session_state.get('cascade_results', {}).get('adjuvant', 'None (formulation only)')
+        st.caption(f"Using vaccine type **{last_vtype}** and adjuvant **{last_adjuvant}** from Molecular Input tab.")
+
+        _opt_btn_label = ("🚀 Run Optimizer (720 formulations)"
+                          if last_vtype in ('mRNA', 'DNA')
+                          else "🚀 Run Optimizer (adjuvant × vehicle sweep)")
+        run_opt = st.button(_opt_btn_label, type="primary", key='opt_run')
 
     with col2:
         if run_opt:
-            with st.spinner(f"Evaluating 720 formulations for objective: **{objective}**..."):
+            n_combos = 720 if last_vtype in ('mRNA', 'DNA') else len([
+                k for k, v in ADJUVANTS.items()
+                if 'Protein subunit' in v['compatible'] and v['confidence'] != 'research'
+            ]) * 4  # adjuvants × 4 vehicles
+            with st.spinner(f"Evaluating {n_combos} {'lipid × modification' if last_vtype != 'Protein subunit' else 'adjuvant × vehicle'} combinations..."):
                 top_results = run_formulation_optimizer(
                     antigen_features=ag_cache,
                     objective=objective,
-                    top_n=top_n
+                    top_n=top_n,
+                    vaccine_type=last_vtype,
+                    adjuvant_name=last_adjuvant
                 )
             st.success(f"✅ Optimization complete — top {top_n} formulations ranked.")
 
             # ── Summary comparison bar chart ─────────────────────────────────
+            is_protein = last_vtype == 'Protein subunit'
             st.markdown("#### 📊 Top Formulations — Side-by-Side Comparison")
-            labels = [f"#{i+1} {r['_formulation']['lipid']}" for i, r in enumerate(top_results)]
-            efficacies    = [r['clinical_predictions']['efficacy']    for r in top_results]
-            safeties      = [r['clinical_predictions']['safety']      for r in top_results]
-            durations     = [r['clinical_predictions']['duration_months'] for r in top_results]
-            reacto        = [r['clinical_predictions']['reactogenicity'] * 100 for r in top_results]
+            labels     = [f"#{i+1} {r['_formulation']['label'][:30]}" for i, r in enumerate(top_results)]
+            efficacies = [r['clinical_predictions']['efficacy']    for r in top_results]
+            safeties   = [r['clinical_predictions']['safety']      for r in top_results]
+            reacto     = [r['clinical_predictions']['reactogenicity'] * 100 for r in top_results]
 
             fig_opt = go.Figure()
-            fig_opt.add_trace(go.Bar(name='Efficacy %',   x=labels, y=efficacies,
-                                     marker_color='#2563eb', text=[f"{v:.1f}%" for v in efficacies],
+            fig_opt.add_trace(go.Bar(name='Efficacy %', x=labels, y=efficacies,
+                                     marker_color='#2563eb',
+                                     text=[f"{v:.1f}%" for v in efficacies],
                                      textposition='outside'))
-            fig_opt.add_trace(go.Bar(name='Safety %',     x=labels, y=safeties,
-                                     marker_color='#10b981', text=[f"{v:.1f}%" for v in safeties],
+            fig_opt.add_trace(go.Bar(name='Safety %', x=labels, y=safeties,
+                                     marker_color='#10b981',
+                                     text=[f"{v:.1f}%" for v in safeties],
                                      textposition='outside'))
             fig_opt.add_trace(go.Bar(name='Reactogenicity %', x=labels, y=reacto,
-                                     marker_color='#ef4444', text=[f"{v:.1f}%" for v in reacto],
+                                     marker_color='#ef4444',
+                                     text=[f"{v:.1f}%" for v in reacto],
                                      textposition='outside'))
             fig_opt.update_layout(
-                barmode='group', height=360,
+                barmode='group', height=380,
+                title=dict(
+                    text=f"{'Adjuvant × Vehicle' if is_protein else 'Lipid × Modification'} optimisation",
+                    font=dict(color='#111827', size=13)
+                ),
                 yaxis=dict(title=dict(text='Score (%)', font=dict(color='#111827')),
-                           tickfont=dict(color='#111827'), range=[0, 115]),
-                xaxis=dict(tickfont=dict(color='#111827', size=10)),
-                margin=dict(t=30, b=60)
+                           tickfont=dict(color='#111827'), range=[0, 120]),
+                xaxis=dict(tickfont=dict(color='#111827', size=9), tickangle=-15),
+                margin=dict(t=50, b=80)
             )
             _light_fig(fig_opt)
             st.plotly_chart(fig_opt, use_container_width=True)
@@ -2806,31 +4061,61 @@ def formulation_optimizer_module():
                 clin  = r['clinical_predictions']
                 th    = r['adaptive_prediction']['th_bias']
                 ci    = r.get('confidence_intervals', {})
-                score = r['_score']
-                rank_color = ['#f59e0b','#6b7280','#cd7f32','#4b5563','#374151'][i]
-                eff_lo, eff_hi = ci.get('efficacy', (clin['efficacy'],clin['efficacy']))
-                dur_lo, dur_hi = ci.get('duration_months', (clin['duration_months'],clin['duration_months']))
+                sc    = r['_score']
+                eff_lo, eff_hi = ci.get('efficacy', (clin['efficacy'], clin['efficacy']))
+                dur_lo, dur_hi = ci.get('duration_months',
+                                        (clin['duration_months'], clin['duration_months']))
 
-                with st.expander(
-                    f"#{i+1}  {fmt['lipid']}  ·  {fmt['modification']}  "
-                    f"·  Efficacy {clin['efficacy']:.1f}%  ·  Safety {clin['safety']:.1f}%  "
-                    f"·  Score {score:.3f}"
-                ):
+                if is_protein:
+                    expander_title = (
+                        f"#{i+1}  {fmt['adjuvant'][:35]}  ·  {fmt['vehicle']}  "
+                        f"·  Efficacy {clin['efficacy']:.1f}%  ·  Safety {clin['safety']:.1f}%  "
+                        f"·  Score {sc:.3f}"
+                    )
+                else:
+                    expander_title = (
+                        f"#{i+1}  {fmt['lipid']}  ·  {fmt['modification'][:25]}  "
+                        f"·  Efficacy {clin['efficacy']:.1f}%  ·  Safety {clin['safety']:.1f}%  "
+                        f"·  Score {sc:.3f}"
+                    )
+
+                with st.expander(expander_title):
                     dc1, dc2, dc3, dc4 = st.columns(4)
-                    dc1.metric("Efficacy",    f"{clin['efficacy']:.1f}%",
+                    dc1.metric("Efficacy",       f"{clin['efficacy']:.1f}%",
                                delta=f"CI: {eff_lo:.1f}–{eff_hi:.1f}%", delta_color="off")
-                    dc2.metric("Safety",      f"{clin['safety']:.1f}%")
+                    dc2.metric("Safety",         f"{clin['safety']:.1f}%")
                     dc3.metric("Reactogenicity", f"{clin['reactogenicity']:.2f}")
-                    dc4.metric("Duration",    f"{clin['duration_months']:.1f} mo",
+                    dc4.metric("Duration",       f"{clin['duration_months']:.1f} mo",
                                delta=f"CI: {dur_lo:.1f}–{dur_hi:.1f}", delta_color="off")
 
-                    st.markdown(f"""
+                    if is_protein:
+                        adj_conf  = ADJUVANTS.get(fmt['adjuvant'], {}).get('confidence', '')
+                        _, adj_col = ADJUVANT_CONFIDENCE.get(adj_conf, ('', '#6b7280'))
+                        adj_notes = ADJUVANTS.get(fmt['adjuvant'], {}).get('notes', '')[:120]
+                        st.markdown(f"""
+<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;
+     padding:0.6rem 1rem;font-size:0.82rem;color:#374151;">
+  <strong>Adjuvant:</strong>
+  <span style="color:{adj_col};font-weight:600;">{fmt['adjuvant']}</span>
+  &nbsp;|&nbsp;
+  <strong>Class:</strong> {fmt['adjuvant_class']} &nbsp;|&nbsp;
+  <strong>Vehicle:</strong> {fmt['vehicle']}<br>
+  <strong>Th1:</strong> {th['Th1']:.0%} &nbsp;
+  <strong>Th2:</strong> {th['Th2']:.0%} &nbsp;
+  <strong>Th17:</strong> {th['Th17']:.0%} &nbsp;
+  <strong>Tfh:</strong> {th['Tfh']:.0%} &nbsp;|&nbsp;
+  <strong>Memory quality:</strong> {r['adaptive_prediction']['memory_quality']:.2f}<br>
+  <span style="color:#6b7280;font-style:italic;">{adj_notes}{'…' if len(ADJUVANTS.get(fmt['adjuvant'],{}).get('notes',''))>120 else ''}</span>
+</div>""", unsafe_allow_html=True)
+                    else:
+                        st.markdown(f"""
 <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;
      padding:0.6rem 1rem;font-size:0.82rem;color:#374151;">
   <strong>Ionizable lipid:</strong> {fmt['lipid']} &nbsp;|&nbsp;
   <strong>Ratios (ion/hlp/chol/PEG):</strong>
-  {fmt['ionizable_ratio']}/{fmt['helper_ratio']}/{fmt['cholesterol_ratio']}/{fmt['peg_ratio']} mol% &nbsp;|&nbsp;
-  <strong>Modification:</strong> {fmt['modification']}<br>
+  {fmt['ionizable_ratio']}/{fmt['helper_ratio']}/{fmt['cholesterol_ratio']}/{fmt['peg_ratio']} mol%
+  &nbsp;|&nbsp; <strong>Modification:</strong> {fmt['modification']}<br>
+  <strong>Adjuvant:</strong> {fmt.get('adjuvant','None')} &nbsp;|&nbsp;
   <strong>Th1:</strong> {th['Th1']:.0%} &nbsp;
   <strong>Th2:</strong> {th['Th2']:.0%} &nbsp;
   <strong>Th17:</strong> {th['Th17']:.0%} &nbsp;
@@ -3048,6 +4333,138 @@ def display_training_datasets():
                  'n': '14 studies, 8 LNP platforms', 'param': 'Reactogenicity equation weights'},
             ]
         },
+        {
+            'category': '📐 Efficacy Equation Calibration',
+            'color': '#0891b2', 'bg': '#f0f9ff', 'border': '#bae6fd',
+            'datasets': [
+                {'name': 'BNT162b2 (Pfizer/BioNTech) Phase 3 Efficacy — Primary Calibration Anchor',
+                 'type': 'Phase 3 RCT',
+                 'source': 'Polack et al., N Engl J Med 2020 (NCT04368728)',
+                 'doi': '10.1056/NEJMoa2034577',
+                 'description': 'ALC-0315 LNP + m1Ψ mRNA: 95% efficacy (95% CI 90.3–97.6%) vs symptomatic COVID-19, n=43,448. '
+                                'Primary calibration anchor for mRNA-LNP canonical formulation. '
+                                'Molecular efficacy formula: E_raw = tlr_evasion×0.25 + trans_eff×mod_level/100×0.35 + antigenicity×0.25 + pKa_opt×0.15. '
+                                'ALC-0315+m1Ψ: E_raw≈0.825 → 94%. Calibration: FLOOR=−0.122, SCALE=1.286.',
+                 'n': 'n=43,448 (21,720 vaccine / 21,728 placebo)',
+                 'param': 'CAL_FLOOR=-0.1217, CAL_SCALE=1.2863 (mRNA/DNA direct molecular formula)'},
+                {'name': 'mRNA-1273 (Moderna) Phase 3 Efficacy — Confirmatory mRNA Anchor',
+                 'type': 'Phase 3 RCT',
+                 'source': 'Baden et al., N Engl J Med 2021 (COVE trial)',
+                 'doi': '10.1056/NEJMoa2035389',
+                 'description': 'SM-102 LNP + m1Ψ mRNA: 94.1% efficacy at interim, 93.2% at blinded completion (95% CI 91.0–94.8%). '
+                                'n=30,415 participants. Confirms mRNA-LNP 93–95% calibration range for both ALC-0315 and SM-102.',
+                 'n': 'n=30,415 (15,209 vaccine / 15,206 placebo)',
+                 'param': 'Confirms mRNA calibration anchor at 93–95% for SM-102 formulation'},
+                {'name': 'Shingrix (AS01B-adjuvanted zoster) Phase 3 — Protein+Adjuvant Upper Anchor',
+                 'type': 'Phase 3 RCT',
+                 'source': 'Lal et al., N Engl J Med 2015 (ZOE-50)',
+                 'doi': '10.1056/NEJMoa1501184',
+                 'description': 'Recombinant VZV glycoprotein E + AS01B: 97.2% efficacy in adults ≥50 years. '
+                                'Upper calibration anchor for protein subunit + AS01B. '
+                                'adj_efficacy_boost for AS01B = 0.28.',
+                 'n': 'n=15,411', 'param': 'AS01B adj_boost=0.28; Protein FLOOR=0.128, SCALE=1.719'},
+                {'name': 'HEPLISAV-B (CpG 1018-adjuvanted HBV) — Protein+TLR9 Anchor',
+                 'type': 'Phase 3 RCT',
+                 'source': 'Heyward et al., Vaccine 2013 · FDA Approval 2017',
+                 'doi': '10.1016/j.vaccine.2013.04.070',
+                 'description': 'Recombinant HBsAg + CpG 1018 (TLR9): ~93% seroprotection vs ~81% for alum-adjuvanted control. '
+                                'adj_efficacy_boost for CpG 1018 = 0.20 for protein vaccines.',
+                 'n': 'n=2,476', 'param': 'CpG 1018 adj_boost=0.20'},
+                {'name': 'Alum-adjuvanted HepB vaccine — Protein+Alum Lower Anchor',
+                 'type': 'Clinical data',
+                 'source': 'Andre 1989, Vaccine · WHO position paper 2017',
+                 'doi': '10.1016/0264-410X(89)90236-4',
+                 'description': 'Alum-adjuvanted recombinant HBsAg: ~60% seroprotection in low responders, ~95% overall. '
+                                'Used as lower calibration anchor for protein+alum. '
+                                'Alum adj_efficacy_boost = 0.19.',
+                 'n': 'Pooled clinical data', 'param': 'Alum adj_boost=0.19; Protein alum baseline ~60%'},
+                {'name': 'Cervarix (AS04-adjuvanted HPV) — Protein+MPL/Alum Anchor',
+                 'type': 'Phase 3 RCT',
+                 'source': 'Paavonen et al., Lancet 2009 (PATRICIA trial)',
+                 'doi': '10.1016/S0140-6736(09)61248-4',
+                 'description': 'Recombinant HPV-16/18 VLP + AS04 (MPL+alum): 93% efficacy against persistent infection. '
+                                'adj_efficacy_boost for AS04 = 0.20.',
+                 'n': 'n=18,644', 'param': 'AS04 adj_boost=0.20'},
+            ]
+        },
+        {
+            'category': '💊 Adjuvant Parameterisation Sources',
+            'color': '#7c3aed', 'bg': '#f5f3ff', 'border': '#ddd6fe',
+            'datasets': [
+                {'name': 'Alum NLRP3 inflammasome activation',
+                 'type': 'In vitro immunology',
+                 'source': 'Kool et al., J Immunol 2008 · Li et al., J Immunol 2008',
+                 'doi': '10.4049/jimmunol.181.1.17',
+                 'description': 'NLRP3/ASC-dependent IL-1β/IL-18 from alum. Basis for Inflammasome=high, TLR7/8=none. NLRP3 dispensable for antibody production confirmed in parallel (PMC 2009).',
+                 'n': 'Multiple KO mouse lines', 'param': "Alum: Inflammasome='high', TLR7_8='none'"},
+                {'name': 'Alum Th2 bias and IgG1/IgE skewing',
+                 'type': 'In vivo immunology',
+                 'source': 'Brewer et al., J Immunol 1999 · Badran et al., Sci Rep 2022',
+                 'doi': '10.1038/s41598-023-30336-1',
+                 'description': 'IgG1/IgG2a ratio confirms strong Th2 bias. STING dispensable for alum adjuvanticity (Immunity 2024). th_bias: Th2 +0.30, Th1 −0.15.',
+                 'n': 'Multiple mouse strains', 'param': "Alum: th_bias Th2=+0.30"},
+                {'name': 'MF59 non-TLR MyD88 pathway',
+                 'type': 'KO mouse immunology',
+                 'source': 'Seubert et al., PNAS 2011',
+                 'doi': '10.1073/pnas.1107941108',
+                 'description': 'MF59 does not activate any TLR in vitro — confirmed on all TLR reporter cell lines. Requires MyD88 through TLR-independent pathway. Basis for TLR7_8=none.',
+                 'n': 'TLR/MyD88 KO comparison', 'param': "MF59: TLR7_8='none', non-TLR MyD88"},
+                {'name': 'MF59 RIPK3-dependent CD8 cross-presentation',
+                 'type': 'Mechanistic mouse study',
+                 'source': 'Seubert et al., eLife 2020',
+                 'doi': '10.7554/eLife.52687',
+                 'description': 'RIPK3 necroptosis drives cross-presentation to CD8 T cells by Batf3+ cDCs. Basis for cd8_boost=0.10 for MF59/AS03/AddaVax.',
+                 'n': 'RIPK3-KO vs WT comparison', 'param': "MF59/AS03: cd8_boost=0.10"},
+                {'name': 'AS01 MPL+QS-21 synergy — early IFN-γ mechanism',
+                 'type': 'Mechanistic NHP + clinical',
+                 'source': 'Coccia et al., npj Vaccines 2017',
+                 'doi': '10.1038/s41541-017-0027-3',
+                 'description': 'MPL (TLR4) + QS-21 (NLRP3) synergistic early IFN-γ from NK cells via IL-12/IL-18. Blocking IFN-γ abolishes Th1 polarisation. Basis for AS01B highest Th1 deltas.',
+                 'n': 'Mouse + macaque + human Phase II', 'param': "AS01B: Th1=+0.40, Tfh=+0.20"},
+                {'name': 'AS01 mode of action — TLR4 and caspase-1 requirement',
+                 'type': 'Mechanistic review',
+                 'source': 'Didierlaurent et al., Tandfonline 2024',
+                 'doi': '10.1080/14760584.2024.2382725',
+                 'description': 'TLR4 expression in hematopoietic cells sufficient for AS01 adjuvant effect. QS-21 activates NLRP3 inflammasome. Liposomal delivery required for full synergy.',
+                 'n': 'Review of licensed vaccine data', 'param': "AS01: Inflammasome='moderate', TLR4→TLR7_8 slot='high'"},
+                {'name': 'CpG ODN TLR9 Th1 mechanism',
+                 'type': 'Mechanistic review',
+                 'source': 'Coffman et al., Immunity 2010',
+                 'doi': '10.1016/j.immuni.2010.10.002',
+                 'description': 'TLR9→MyD88→IRF7→IFN-α and NF-κB→IL-12. Strong Th1/IgG2 bias, B cell activation. CpG 1018 (FDA-approved 2017 HEPLISAV-B) and CpG 7909 (FDA-approved 2023 Cyfendus).',
+                 'n': 'Multiple clinical datasets', 'param': "CpG ODN: TLR7_8='very_high' (TLR9 mapped), Th1=+0.35"},
+                {'name': '3M-052 long-lived plasma cell induction',
+                 'type': 'NHP immunology',
+                 'source': 'Nat Comms 2022 — Molecular atlas of innate immunity',
+                 'doi': '10.1038/s41467-022-28197-9',
+                 'description': 'Lipidated TLR7/8 agonist induces robust antiviral/IFN gene program similar to yellow fever vaccine. Long-lived plasma cells up to ~1 year in NHPs. Highest Tfh delta of TLR7/8 class.',
+                 'n': 'scRNA-seq + flow cytometry, NHP', 'param': "3M-052: Tfh=+0.15, cd8_boost=0.12"},
+                {'name': 'Matrix-M saponin nanoparticle mechanism',
+                 'type': 'Mechanistic + clinical',
+                 'source': 'Science Advances 2024 — saponin-TLRa nanoadjuvants',
+                 'doi': '10.1126/sciadv.adn7187',
+                 'description': 'Saponin nanoparticle (ISCOMATRIX-comparable). NLRP3-driven inflammasome, strong Th1 + CD8 cross-presentation. FDA-approved Oct 2022 Novavax COVID-19 vaccine. WHO-recommended R21/Matrix-M malaria vaccine 2023.',
+                 'n': 'COVID-19 + malaria Phase III', 'param': "Matrix-M: Inflammasome='moderate', cd8_boost=0.18"},
+                {'name': 'Poly-ICLC (Hiltonol) TLR3/MDA-5 adjuvancy',
+                 'type': 'Clinical review',
+                 'source': 'Caskey et al., PMC 2022 — Vaccines overview',
+                 'doi': '10.3390/vaccines10050819',
+                 'description': 'Poly-ICLC stronger Th1 response than LPS or CpG in direct comparisons. TLR3 + cytosolic MDA-5. Strong type I IFN and CD8 cross-presentation via cDC1.',
+                 'n': 'Multiple Phase I/II trials', 'param': "Poly-ICLC: TLR3='high', cd8_boost=0.18"},
+                {'name': 'Comprehensive adjuvant mechanisms review',
+                 'type': 'Systematic review',
+                 'source': 'Frontiers Immunology 2025 — Recent advances in vaccine adjuvants',
+                 'doi': '10.3389/fimmu.2025.1557415',
+                 'description': 'Full mechanistic coverage of TLR1/2/3/4/5/7/8/9 agonists, emulsions, saponins, and combination systems. Primary reference for ordinal pathway strength assignments across the adjuvant catalogue.',
+                 'n': '200+ citations reviewed', 'param': 'All adjuvant ordinal pathway scores'},
+                {'name': 'Adjuvant confidence tiers and clinical status',
+                 'type': 'Clinical landscape review',
+                 'source': 'Goetz et al., Bioengineering & Translational Medicine 2024',
+                 'doi': '10.1002/btm2.10663',
+                 'description': 'Comprehensive survey of FDA/EMA-approved adjuvants and clinical trials pipeline. Source for confidence tier assignments (approved/clinical/preclinical) across 22 adjuvants in the Epitrix catalogue.',
+                 'n': 'All licensed and Phase I–III adjuvants', 'param': 'confidence tier labels'},
+            ]
+        },
     ]
 
     for cat in DATASETS:
@@ -3187,7 +4604,7 @@ def main():
       <div class="sb-logo-icon">🧠</div>
       <div class="sb-logo-text">
         <strong>Epitrix</strong>
-        <span>Mechanistic Simulation Platform</span>
+        <span>Hybrid ML + Simulation Platform</span>
       </div>
     </div>
     <div class="sb-divider"></div>
@@ -3212,7 +4629,10 @@ def main():
     <div style="padding:0.5rem 0.25rem;">
       <span style="color:#475569 !important;font-size:0.7rem;">Epitrix v2.0 · Research Preview</span><br>
       <span style="color:#334155 !important;font-size:0.68rem;">
-        Not for clinical use · Mechanistic simulation only
+        ML epitope (AUC 0.986) + mechanistic cascade
+      </span><br>
+      <span style="color:#334155 !important;font-size:0.68rem;">
+        Not for clinical use · Research use only
       </span>
     </div>
     """, unsafe_allow_html=True)
