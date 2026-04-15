@@ -328,7 +328,7 @@ MOLECULAR_DESCRIPTORS = {
             # ── Custom placeholder (populated dynamically from UI) ─────────────
             '⚙️ Custom Lipid': {
                 'pka': 6.5, 'logP': 7.5, 'molecular_weight': 680.0, 'branching_factor': 2.0,
-                'notes': 'User-defined custom lipid — edit properties in the sidebar',
+                'notes': 'User-defined custom lipid. Edit properties in the sidebar.',
                 'innate_profile': {'TLR_activation': 'low', 'complement_trigger': 'minimal', 'dc_maturation': 'moderate'}
             },
         },
@@ -554,7 +554,7 @@ ADJUVANTS = {
         'dc_boost': 0.0, 'cd8_boost': 0.0,
         'confidence': 'approved',
         'class': 'None',
-        'notes': 'No adjuvant added — innate activation from formulation chemistry only.',
+        'notes': 'No adjuvant added. Innate activation from formulation chemistry only.',
         'compatible': ['mRNA', 'DNA', 'Protein subunit'],
     },
 
@@ -658,7 +658,7 @@ ADJUVANTS = {
         'confidence': 'clinical',
         'class': 'Emulsion',
         'notes': 'Squalene-in-water; better tolerated than ISA 51. Malaria trials '
-                 '(Aucouturier 2001 Vaccine). Depot effect only — no TLR agonism.',
+                 '(Aucouturier 2001 Vaccine). Depot effect only, no TLR agonism.',
         'compatible': ['Protein subunit'],
     },
 
@@ -672,10 +672,10 @@ ADJUVANTS = {
         'dc_boost': 0.30, 'cd8_boost': 0.05,
         'confidence': 'approved',
         'class': 'TLR agonist',
-        'notes': 'TLR4 agonist — detoxified LPS from S. minnesota. TLR4→NF-κB→Th1. '
+        'notes': 'TLR4 agonist, detoxified LPS from S. minnesota. TLR4→NF-κB→Th1. '
                  'Scores mapped to TLR7_8 slot as the dominant innate-Th1 driver. '
                  'First TLR agonist in licensed vaccines (AS04, 2009). '
-                 'Note: weaker human vs mouse TLR4 activity — ~27% efficacy vs Lipid A '
+                 'Note: weaker human vs mouse TLR4 activity (~27% efficacy vs Lipid A '
                  'on human TLR4 (Frontiers Immunol 2020).',
         'compatible': ['Protein subunit', 'mRNA', 'DNA'],
     },
@@ -717,7 +717,7 @@ ADJUVANTS = {
         'dc_boost': 0.25, 'cd8_boost': 0.05,
         'confidence': 'approved',
         'class': 'TLR agonist',
-        'notes': 'TLR9 agonist — mapped to TLR7_8 slot as dominant innate-Th1 driver. '
+        'notes': 'TLR9 agonist, mapped to TLR7_8 slot as the dominant innate-Th1 driver. '
                  'FDA-approved 2017 in HEPLISAV-B hepatitis B vaccine (Dynavax). '
                  'Strong IL-12, IFN-α, B cell activation. Very strong Th1/IgG2 bias. '
                  'Class B (K-type) CpG ODN (Coffman 2010 Immunity 33:492).',
@@ -761,7 +761,7 @@ ADJUVANTS = {
         'dc_boost': 0.30, 'cd8_boost': 0.12,
         'confidence': 'clinical',
         'class': 'TLR agonist',
-        'notes': 'Lipidated TLR7/8 agonist — retained at injection site, reducing '
+        'notes': 'Lipidated TLR7/8 agonist, retained at injection site, reducing '
                  'systemic exposure. Induces long-lived plasma cells (up to ~1 year) '
                  'in NHP studies. Robust antiviral IFN program similar to yellow '
                  'fever vaccine (Nat Comms 2022). Phase I/II HIV, SARS-CoV-2.',
@@ -777,7 +777,7 @@ ADJUVANTS = {
         'confidence': 'clinical',
         'class': 'TLR agonist',
         'notes': 'TLR7-selective benzonaphthyridine scaffold adsorbed to alum for '
-                 'local retention. Phase I meningococcal vaccine — acceptable safety, '
+                 'local retention. Phase I meningococcal vaccine with acceptable safety, '
                  'expected innate pathways activated (PMC 2025; Siena 2023). '
                  'Alum component adds moderate inflammasome activation.',
         'compatible': ['Protein subunit', 'mRNA', 'DNA'],
@@ -794,7 +794,7 @@ ADJUVANTS = {
         'notes': 'TLR7-selective imidazoquinoline. FDA-approved for topical skin use '
                  '(Aldara). Used as adjuvant in intradermal vaccine studies. '
                  'Strong Th1 via IFN-α/IL-12. Species note: TLR8 not functional '
-                 'in mice — TLR7-only in murine models (Immunity 2010).',
+                 'in mice; TLR7-only in murine models (Immunity 2010).',
         'compatible': ['Protein subunit', 'mRNA', 'DNA'],
     },
 
@@ -806,7 +806,7 @@ ADJUVANTS = {
         'dc_boost': 0.25, 'cd8_boost': 0.20,
         'confidence': 'clinical',
         'class': 'TLR agonist',
-        'notes': 'dsRNA mimic — TLR3 + cytosolic MDA-5. Strong type I IFN, IL-12. '
+        'notes': 'dsRNA mimic activating TLR3 and cytosolic MDA-5. Strong type I IFN, IL-12. '
                  'cDC1 cross-presentation → strong CD8 T cell responses. '
                  'Toxic at high doses; rapid serum degradation limits clinical use '
                  '(Frontiers Immunol 2023; PMC 2022).',
@@ -836,8 +836,8 @@ ADJUVANTS = {
         'dc_boost': 0.15, 'cd8_boost': 0.05,
         'confidence': 'preclinical',
         'class': 'TLR agonist',
-        'notes': 'Bacterial lipoprotein mimic. TLR1/2 heterodimer — NF-κB→Th1/Th17. '
-                 'Note: no dedicated Epitrix pathway slot — effect captured via '
+        'notes': 'Bacterial lipoprotein mimic. TLR1/2 heterodimer activates NF-κB, driving Th1/Th17. '
+                 'Note: no dedicated Epitrix pathway slot; effect is captured via '
                  'dc_boost and th_bias deltas. Science Advances 2024 saponin-TLRa '
                  'combination study.',
         'compatible': ['Protein subunit', 'mRNA', 'DNA'],
@@ -887,7 +887,7 @@ ADJUVANTS = {
         'confidence': 'approved',
         'class': 'Combination',
         'notes': 'MPL (TLR4→Th1) + QS-21 (NLRP3 inflammasome) in liposome. '
-                 'Synergistic — early IFN-γ from NK cells via IL-12/IL-18 '
+                 'Synergistic: early IFN-γ from NK cells via IL-12/IL-18 '
                  '(Coccia 2017 npj Vaccines). Blocking IFN-γ abolishes synergy. '
                  'FDA-approved in Shingrix (zoster) and Mosquirix (malaria). '
                  'Tandfonline 2024 AS01 review.',
@@ -960,7 +960,7 @@ ADJUVANTS = {
         'dc_boost': 0.18, 'cd8_boost': 0.05,
         'confidence': 'clinical',
         'class': 'Combination',
-        'notes': 'Cationic DDA liposome + TDB (trehalose dibehenate — Mincle receptor '
+        'notes': 'Cationic DDA liposome + TDB (trehalose dibehenate, Mincle receptor '
                  'agonist). Th1/Th17 bias; strong for intracellular pathogens (TB, '
                  'chlamydia). Phase I trials completed (NCT02787109, NCT00922363). '
                  'PMC 2025; Frontiers 2023.',
@@ -1008,7 +1008,7 @@ ADJUVANTS = {
         'dc_boost': 0.18, 'cd8_boost': 0.22,
         'confidence': 'preclinical',
         'class': 'STING agonist',
-        'notes': 'Atypical CDN — Phase I solid tumour trial completed. Limited '
+        'notes': 'Atypical CDN. Phase I solid tumour trial completed. Limited '
                  'single-agent activity but IFN-γ/CXCL10 systemic activation '
                  'confirmed dose-dependently (Clin Cancer Res 2022). Cleared from '
                  'bloodstream within 2 hours. Not yet evaluated as vaccine adjuvant '
@@ -1057,13 +1057,13 @@ ADJUVANTS = {
         'confidence': 'preclinical',
         'class': 'Polymer',
         'notes': 'Biodegradable cationic polymer. Dual activation: NLRP3 inflammasome '
-                 '(IL-1β) AND cGAS-STING pathway (type I IFN) — Immunity 2016 Carroll. '
+                 '(IL-1β) and cGAS-STING pathway (type I IFN). Immunity 2016 Carroll. '
                  'Good safety profile. Th1/Th17/IgG2 when combined with CpG. '
                  'Particulate delivery enhances mucosal responses. PMC 2025.',
         'compatible': ['Protein subunit', 'mRNA', 'DNA'],
     },
 
-    'CFA (Complete Freund — research only)': {
+    'CFA (Complete Freund: research only)': {
         'scores':     {'TLR7_8': _s('moderate'), 'TLR3': _s('none'),
                        'cGAS_STING': _s('none'), 'Complement': _s('low'),
                        'Inflammasome': _s('moderate')},
@@ -1072,7 +1072,7 @@ ADJUVANTS = {
         'confidence': 'research',
         'class': 'Research only',
         'notes': 'Mineral oil + killed Mycobacterium tuberculosis. TLR2 (mycobacterial '
-                 'lipoproteins) + depot. Very strong Th1. NOT for human use — '
+                 'lipoproteins) + depot. Very strong Th1. NOT for human use: '
                  'severe local reactions. Standard preclinical mouse model comparator. '
                  'Seubert 2011 PNAS.',
         'compatible': ['Protein subunit'],
@@ -1131,7 +1131,7 @@ _HLA_A0201_PSSM = {
     6: {'V':2,'I':2,'L':2,'T':1,'A':1},
     7: {'P':1,'A':1,'G':1,'S':1},
     8: {'K':1,'R':1,'Q':1,'H':1},
-    9: {'L':4,'V':3,'I':3,'M':2,'A':1,'T':1},  # anchor P9 — critical
+    9: {'L':4,'V':3,'I':3,'M':2,'A':1,'T':1},  # anchor P9: critical
 }
 # HLA-DR allele generic 15-mer PSSM (MHC-II)
 _HLA_DR_PSSM = {
@@ -1384,7 +1384,23 @@ def _ml_epitope_scan(seq: str, species: str = 'human') :
             if os.path.exists(p):
                 model_path = p
                 break
+
+        # Store debug info in session state so we can surface it in UI
+        import streamlit as _st
+        debug_info = {
+            'app_dir': _app_dir,
+            'candidates_checked': model_candidates,
+            'model_found': model_path,
+        }
+        _st.session_state['_ml_debug'] = debug_info
+
         if model_path is None:
+            return None
+
+        # Check file is not a Git LFS pointer (real pkl should be > 10KB)
+        file_size = os.path.getsize(model_path)
+        if file_size < 10_000:
+            _st.session_state['_ml_debug']['error'] = f'Model file too small ({file_size} bytes) — likely a Git LFS pointer, not the actual model'
             return None
 
         # Ensure app directory is on path for epitrix_ml package import
@@ -1395,6 +1411,7 @@ def _ml_epitope_scan(seq: str, species: str = 'human') :
         result = _ml_scan(seq, model_path=model_path)
 
         if not result.get('_ml_available'):
+            _st.session_state['_ml_debug']['error'] = f'ml_scan returned _ml_available=False'
             return None
 
         return {
@@ -1405,7 +1422,13 @@ def _ml_epitope_scan(seq: str, species: str = 'human') :
             'ml_auc':          result.get('_model_auc'),
             'species':         species,
         }
-    except Exception:
+    except Exception as _e:
+        try:
+            import streamlit as _st
+            _st.session_state['_ml_debug'] = _st.session_state.get('_ml_debug', {})
+            _st.session_state['_ml_debug']['exception'] = str(_e)
+        except Exception:
+            pass
         return None
 
 
@@ -1414,9 +1437,9 @@ def analyze_antigen_sequence(sequence: str, use_iedb: bool = True,
     """
     Full antigen sequence analysis pipeline.
     Priority order for MHC-I prediction:
-      1. Trained XGBoost model (best — if model file present)
-      2. IEDB NetMHCpan API (good — if network reachable)
-      3. Local PSSM scanner (always available — fallback)
+      1. Trained XGBoost model (best: if model file present)
+      2. IEDB NetMHCpan API (good: if network reachable)
+      3. Local PSSM scanner (always available: fallback)
     """
     seq = sequence.upper().strip().replace(' ', '').replace('\n', '')
     if not seq:
@@ -1753,7 +1776,7 @@ def run_integrated_prediction(ionizable_lipid, ionizable_ratio, helper_ratio,
         'dmLT (double mutant heat-labile toxin)': 0.10,
         'Flagellin / FliC (TLR5)':              0.08,
         'Chitosan (polymer, cGAS-STING + NLRP3)': 0.07,
-        'CFA (Complete Freund — research only)': 0.20,
+        'CFA (Complete Freund: research only)': 0.20,
     }
     # For mRNA and DNA: DIRECT MOLECULAR FORMULA using the four key molecular
     # determinants — each independently sourced from published literature.
@@ -1876,7 +1899,7 @@ def run_formulation_optimizer(antigen_features, objective: str = 'balanced',
         elif objective == 'th1_bias':
             th = r['adaptive_prediction']['th_bias']
             return (th['Th1'] + th['Tfh']) / 2
-        else:  # balanced — harmonic mean
+        else:  # balanced: harmonic mean
             e = clin['efficacy'] / 100
             s = clin['safety']   / 100
             return 2 * e * s / (e + s + 1e-9)
@@ -1948,7 +1971,7 @@ def run_formulation_optimizer(antigen_features, objective: str = 'balanced',
             ('Aqueous solution', 42, 30, 3),   # standard aqueous
         ]
 
-        lipid = 'SM-102'   # held constant — not the design variable for protein vaccines
+        lipid = 'SM-102'   # held constant: not the design variable for protein vaccines
         mod   = 'Unmodified'  # no nucleoside modification for protein vaccines
         mod_level = 0
 
@@ -1983,7 +2006,7 @@ def create_breakthrough_header():
     st.markdown("""
     <style>
     /* ── Epitrix animated header ─────────────────────────────────────────────
-       Gradient stays in a READABLE mid-range — no blacks or near-blacks.
+       Gradient stays in a READABLE mid-range: no blacks or near-blacks.
        Lightest stop: #3b82f6 (bright blue)  Darkest stop: #1d4ed8 (deep blue)
        Text is always white on these backgrounds.
     ── */
@@ -2021,7 +2044,7 @@ def create_breakthrough_header():
         position: relative; z-index: 2;
         display: flex; flex-direction: column; gap: 0.55rem;
     }
-    /* decorative orbs — lighter so text stays readable */
+    /* decorative orbs: lighter so text stays readable */
     .epitrix-orb1 {
         position: absolute; width: 380px; height: 380px; border-radius: 50%;
         background: rgba(255,255,255,0.07);
@@ -2074,7 +2097,7 @@ def create_breakthrough_header():
         <div class="epitrix-pill">🔬 Hybrid ML + Mechanistic Simulation Platform · v2.0</div>
         <h1 class="epitrix-wordmark">Epitr<span>ix</span></h1>
         <p class="epitrix-sub">
-          Hybrid mechanistic and machine learning platform — XGBoost epitope prediction
+          Hybrid mechanistic and machine learning platform. XGBoost epitope prediction
           (AUC 0.986) combined with parameterised innate→adaptive cascade modeling.
           From antigen sequence and LNP formulation to predicted T cell immunogenicity,
           innate activation, adaptive immune quality, and clinical outcomes.
@@ -2147,7 +2170,7 @@ def display_core_innovation():
           <div class="innovation-card">
             <h3 style="font-size:1.1rem;font-weight:700;color:#111827;margin:0 0 0.75rem;">❌ Current Landscape</h3>
             <ul>
-              <li>Epitope prediction tools (NetMHCpan, MHCflurry) are standalone — not connected to formulation inputs</li>
+              <li>Epitope prediction tools (NetMHCpan, MHCflurry) are standalone and not connected to formulation inputs</li>
               <li>Innate and adaptive immune models exist separately with no shared pipeline</li>
               <li>No publicly available tool connects LNP formulation chemistry to T cell outcome prediction</li>
               <li>LNP pKa and lipid choice effects on Th1/Tfh polarisation are known experimentally but not computationally modelled in accessible tools</li>
@@ -2162,19 +2185,19 @@ def display_core_innovation():
           <div class="innovation-card" style="border-left:4px solid #10b981;">
             <h3 style="font-size:1.1rem;font-weight:700;color:#111827;margin:0 0 0.75rem;">✅ The Epitrix Approach</h3>
             <ul>
-              <li><strong>XGBoost MHC-I epitope model</strong> trained on 219k IEDB peptides — AUC 0.986 (random split), AUC 0.789 (independent holdout)</li>
-              <li><strong>XGBoost T cell immunogenicity model</strong> trained on 92k IEDB assays — AUC 0.928 (human), AUC 0.907 (mouse)</li>
-              <li>Delivery system features extracted from IEDB free-text fields — first delivery-aware T cell predictor from bulk IEDB data</li>
+              <li><strong>XGBoost MHC-I epitope model</strong> trained on 219k IEDB peptides, AUC 0.986 (random split), AUC 0.789 (independent holdout)</li>
+              <li><strong>XGBoost T cell immunogenicity model</strong> trained on 92k IEDB assays, AUC 0.928 (human), AUC 0.907 (mouse)</li>
+              <li>Delivery system features extracted from IEDB free-text fields. This is the first delivery-aware T cell predictor built from bulk IEDB data.</li>
               <li>Epitope scores feed directly into parameterised innate and adaptive cascade equations</li>
               <li>LNP molecular descriptors (pKa, branching, modification) drive innate pathway activation</li>
               <li>Innate signals shape Th1/Th2/Tfh bias, memory quality, and antibody magnitude</li>
-              <li>Clinical reactogenicity predicted from the same cascade — not a separate model</li>
-              <li>Efficacy equation calibrated to Phase 3 trial data: mRNA-LNP (BNT162b2/mRNA-1273) → ~94%, protein+AS01B → ~97%, protein+alum → ~60%</li>
+              <li>Clinical reactogenicity predicted from the same cascade, not a separate model</li>
+              <li>Efficacy equation calibrated to Phase 3 trial data: mRNA-LNP (BNT162b2/mRNA-1273) predicts ~94%, protein+AS01B ~97%, protein+alum ~60%</li>
               <li>All outputs carry 95% CI from published biological variability data</li>
             </ul>
             <p style="font-size:0.78rem;color:#6b7280;margin-top:0.75rem;font-style:italic;">
               Note: cascade coefficients are parameterised from literature, not statistically fitted.
-              Results are for hypothesis generation and comparative analysis — not clinical decision-making.
+              Results are for hypothesis generation and comparative analysis: not clinical decision-making.
             </p>
           </div>
         </div>
@@ -2186,7 +2209,7 @@ def display_breakthrough_concept():
     <div class="content-container">
       <div class="innovation-card">
         <h2 class="section-title">💡 The Epitrix Concept</h2>
-        <p class="section-subtitle">Hybrid ML + mechanistic pipeline — from molecular design to clinical outcome</p>
+        <p class="section-subtitle">Hybrid ML and mechanistic pipeline, from molecular design to clinical outcome</p>
         <div class="cascade-flow">
           <div class="flow-step" style="border-color:#ede9fe;background:linear-gradient(135deg,#f5f3ff,#ffffff);">
             <strong style="color:#4c1d95 !important;">🤖 Antigen Sequence + XGBoost Epitope Model</strong>
@@ -2200,7 +2223,7 @@ def display_breakthrough_concept():
           <div class="flow-arrow">⬇️</div>
           <div class="flow-step">
             <strong>Innate Immune Activation</strong>
-            <em>TLR7/8 · TLR3 · cGAS-STING · complement · inflammasome — parameterised equations</em>
+            <em>TLR7/8 · TLR3 · cGAS-STING · complement · inflammasome (parameterised equations)</em>
           </div>
           <div class="flow-arrow">⬇️</div>
           <div class="flow-step">
@@ -2301,7 +2324,7 @@ def display_data_integration():
         <p class="section-subtitle">
           Epitrix accepts two categories of user inputs and produces six categories of predicted outputs.
           The innate and adaptive immune values shown in the platform are <strong>model predictions</strong>,
-          not measurements — they are derived from the molecular inputs below.
+          not measurements: they are derived from the molecular inputs below.
         </p>
       </div>
     </div>
@@ -2313,7 +2336,7 @@ def display_data_integration():
         st.markdown("""
         <div class="content-container" style="padding-top:0;">
           <div class="data-card" style="border-left:4px solid #2563eb;">
-            <h4>📥 User Inputs — Molecular Design</h4>
+            <h4>📥 User Inputs. Molecular Design</h4>
             <p style="font-size:0.82rem;color:#4b5563;margin-bottom:0.5rem;">
               Everything the user provides. No experimental measurements required.
             </p>
@@ -2328,7 +2351,7 @@ def display_data_integration():
           </div>
 
           <div class="data-card" style="border-left:4px solid #7c3aed;margin-top:1rem;">
-            <h4>🤖 ML Training Data (IEDB — used offline)</h4>
+            <h4>🤖 ML Training Data (IEDB, used offline)</h4>
             <p style="font-size:0.82rem;color:#4b5563;margin-bottom:0.5rem;">
               The datasets the XGBoost models were trained on. Not required at runtime.
             </p>
@@ -2345,7 +2368,7 @@ def display_data_integration():
         st.markdown("""
         <div class="content-container" style="padding-top:0;">
           <div class="data-card output" style="border-left:4px solid #10b981;">
-            <h4>📤 Predicted Outputs — ML Layer</h4>
+            <h4>📤 Predicted Outputs. ML Layer</h4>
             <p style="font-size:0.82rem;color:#4b5563;margin-bottom:0.5rem;">
               Generated by the trained XGBoost models from the antigen sequence input.
             </p>
@@ -2358,7 +2381,7 @@ def display_data_integration():
           </div>
 
           <div class="data-card output" style="border-left:4px solid #10b981;margin-top:1rem;">
-            <h4>📤 Predicted Outputs — Mechanistic Cascade</h4>
+            <h4>📤 Predicted Outputs. Mechanistic Cascade</h4>
             <p style="font-size:0.82rem;color:#4b5563;margin-bottom:0.5rem;">
               Generated by parameterised equations from formulation inputs + ML epitope scores.
               Coefficients are literature-derived, not statistically fitted.
@@ -2406,11 +2429,11 @@ def display_modeling_platform():
       </div>
       <div style="background:#fffbeb;border:1px solid #fde68a;border-left:4px solid #f59e0b;
            border-radius:10px;padding:0.8rem 1.2rem;margin-bottom:1rem;font-size:0.83rem;color:#78350f;">
-        <strong>ℹ️ Hybrid Platform</strong> — MHC-I epitope predictions use a trained
+        <strong>ℹ️ Hybrid Platform:</strong> MHC-I epitope predictions use a trained
         <strong>XGBoost model</strong> (AUC-ROC 0.986, trained on 219k IEDB peptides for human;
         AUC-ROC 0.970 for mouse). All other predictions (innate pathways, adaptive cascade,
         clinical outcomes) are parameterised <strong>mechanistic equations</strong> fitted to
-        published experimental data — not trained ML models.
+        published experimental data: not trained ML models.
         The efficacy equation for <strong>mRNA/DNA vaccines</strong> uses a
         <strong>direct molecular formula</strong> calibrated to Phase 3 trial data:
         E = f(TLR evasion, translation efficiency × modification level, antigen quality, pKa optimality).
@@ -2575,7 +2598,7 @@ def molecular_input_module():
         def _adj_label(name):
             a = ADJUVANTS[name]
             tier_label, _ = ADJUVANT_CONFIDENCE[a['confidence']]
-            return f"[{a['class']}] {name}  —  {tier_label}"
+            return f"[{a['class']}] {name} :  {tier_label}"
 
         adjuvant_name = st.selectbox(
             "Adjuvant:",
@@ -2620,7 +2643,7 @@ def molecular_input_module():
   Complement: {_bar(sc['Complement'])} &nbsp;
   Inflammasome: {_bar(sc['Inflammasome'])}
   <br><span style="color:#9ca3af;font-size:0.72rem;">
-  Scores are parameterised approximations — not direct experimental measurements.
+  Scores are parameterised approximations, not direct experimental measurements.
   See notes above for supporting literature.</span>
 </div>""", unsafe_allow_html=True)
         if not is_protein:
@@ -2629,11 +2652,11 @@ def molecular_input_module():
             with ecol1:
                 helper_lipid = st.selectbox("Helper Lipid:", list(helper_lipids_db.keys()))
                 hl = helper_lipids_db[helper_lipid]
-                st.caption(f"Rigidity: {hl['membrane_rigidity']} | Tm: {hl['phase_transition_temp']}°C — {hl['notes']}")
+                st.caption(f"Rigidity: {hl['membrane_rigidity']} | Tm: {hl['phase_transition_temp']}°C. {hl['notes']}")
             with ecol2:
                 peg_lipid = st.selectbox("PEG-Lipid:", list(peg_lipids_db.keys()))
                 pl = peg_lipids_db[peg_lipid]
-                st.caption(f"PEG MW: {pl['peg_mw']} | Shedding: {pl['shedding_rate']} — {pl['notes']}")
+                st.caption(f"PEG MW: {pl['peg_mw']} | Shedding: {pl['shedding_rate']}. {pl['notes']}")
 
             # ── Formulation ratios ────────────────────────────────────────────
             st.markdown("#### ⚗️ Formulation Ratios (mol%)")
@@ -2700,12 +2723,25 @@ def molecular_input_module():
             key='mol_species'
         )
         st.caption(
-            "Human: HLA-A\\*02:01 / HLA-DR — for clinical vaccine design  |  "
-            "Mouse: H-2Kb / H-2Db — for preclinical studies (C57BL/6, BALB/c)"
+            "Human: HLA-A\\*02:01 / HLA-DR (clinical vaccine design)  |  "
+            "Mouse: H-2Kb / H-2Db: for preclinical studies (C57BL/6, BALB/c)"
         )
 
         # Live sequence analysis preview
         ag_features = None
+
+        # ── ML debug panel (shown only when ML not loading) ───────────────────
+        if '_ml_debug' in st.session_state:
+            dbg = st.session_state['_ml_debug']
+            if dbg.get('error') or dbg.get('exception'):
+                with st.expander("🔧 ML model diagnostic — expand to debug", expanded=False):
+                    st.code(f"""App directory:  {dbg.get('app_dir', 'unknown')}
+Model found at: {dbg.get('model_found', 'NOT FOUND')}
+Paths checked:
+  {chr(10).join('  ' + p for p in dbg.get('candidates_checked', []))}
+Error:          {dbg.get('error', '')}
+Exception:      {dbg.get('exception', '')}""")
+
         if antigen_sequence and antigen_sequence.strip():
             spinner_msg = f"🔬 Running {'XGBoost ML' if True else 'PSSM'} epitope scan [{species}]..."
             with st.spinner(spinner_msg):
@@ -2752,7 +2788,7 @@ def molecular_input_module():
                 st.warning(f"⚠️ Could not parse sequence: {ag_features.get('error', 'unrecognized format')}")
                 ag_features = None
         else:
-            st.caption("No antigen sequence provided — prediction will use default antigenicity values.")
+            st.caption("No antigen sequence provided. The prediction will use default antigenicity values.")
 
         # ── Run label input ──────────────────────────────────────────────────
         _adj_short = adjuvant_name.split(' (')[0][:18] if adjuvant_name != 'None (formulation only)' else 'No adj'
@@ -2891,7 +2927,7 @@ def molecular_input_module():
                 st.markdown("""
 <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;
      padding:0.5rem 1rem;margin:0.5rem 0;font-size:0.82rem;color:#6b7280;">
-  🎯 <em>No antigen sequence provided — using default antigenicity parameters</em>
+  🎯 <em>No antigen sequence provided. Using default antigenicity parameters.</em>
 </div>""", unsafe_allow_html=True)
 
             st.markdown("#### 🔥 Predicted Innate Activation")
@@ -2966,7 +3002,7 @@ def innate_prediction_module():
     st.markdown("""
     <div style="background:#fffbeb;border:1px solid #fde68a;border-left:4px solid #f59e0b;
          border-radius:10px;padding:0.75rem 1.2rem;margin-bottom:1rem;font-size:0.83rem;color:#78350f;">
-      <strong>ℹ️ Mechanistic Simulation</strong> — Innate pathway scores are derived from
+      <strong>ℹ️ Mechanistic Simulation:</strong> Innate pathway scores are derived from
       parameterised equations fitted to published experimental datasets, not a trained ML model.
       Shaded bands represent published inter-individual biological variability (95% CI).
     </div>
@@ -3358,7 +3394,7 @@ def adaptive_outcomes_module():
                 line=dict(color='#94a3b8', width=1.5, dash='dot')
             ))
         fig2.update_layout(
-            title=dict(text=f"Antibody Response Kinetics — {population}",
+            title=dict(text=f"Antibody Response Kinetics: {population}",
                        font=dict(color='#111827', size=15)),
             xaxis=dict(title=dict(text="Time (days)", font=dict(color='#111827', size=13)),
                        tickfont=dict(color='#111827', size=12)),
@@ -3702,7 +3738,7 @@ def epitope_analysis_module():
     st.markdown("""
     <div class="innovation-card">
       <h3 style="font-size:1.25rem;font-weight:700;color:#111827;margin:0 0 0.4rem;">
-        🧬 Epitope Analysis — PSSM Scanner + IEDB Integration
+        🧬 Epitope Analysis: PSSM Scanner and IEDB Integration
       </h3>
       <p style="color:#4b5563;margin:0;font-size:0.9rem;">
         Scan any protein sequence for MHC-I (HLA-A*02:01, 9-mer) and MHC-II (HLA-DR, 15-mer)
@@ -3753,13 +3789,13 @@ def epitope_analysis_module():
         st.markdown("""
 <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;
      padding:1rem;font-size:0.83rem;color:#1e3a5f;">
-<strong>🥇 XGBoost ML model</strong> (best — used when model files present):<br>
+<strong>🥇 XGBoost ML model</strong> (best, used when model files are present):<br>
 Trained on IEDB MHC-I binding data. Human model: AUC-ROC 0.986 (219k peptides).
 Mouse model: AUC-ROC 0.970 (59k peptides). Purple <strong>🤖 XGBoost ML</strong> badge.<br><br>
-<strong>🥈 IEDB NetMHCpan</strong> (good — when ML unavailable + network reachable):<br>
+<strong>🥈 IEDB NetMHCpan</strong> (good fallback, used when ML is unavailable and network is reachable):<br>
 NetMHCpan 4.1 (MHC-I) and NetMHCIIpan 4.0 (MHC-II).
 Green <strong>IEDB ✓</strong> badge.<br><br>
-<strong>🥉 Local PSSM scanner</strong> (always available — fallback):<br>
+<strong>🥉 Local PSSM scanner</strong> (always available as a fallback):<br>
 Published HLA-A*02:01 / H-2Kb anchor position weight matrices.
 Grey <strong>Local PSSM</strong> badge.<br><br>
 <em>To enable ML predictions: place the <code>epitrix_ml/</code> folder and
@@ -3785,7 +3821,7 @@ trained <code>models/</code> directory alongside <code>app.py</code>.</em>
             elif result.get('iedb_used'):
                 method_str = f'🟢 **IEDB NetMHCpan** ({ep_species})'
             else:
-                method_str = f'🟡 **Local PSSM** ({ep_species}) — ML model not found / IEDB unavailable'
+                method_str = f'🟡 **Local PSSM** ({ep_species}): ML model not found, IEDB unavailable'
 
             species_label = '🧑 Human HLA' if ep_species == 'human' else '🐭 Mouse H-2'
             st.markdown(f"**Method:** {method_str} &nbsp;|&nbsp; **Species:** {species_label}")
@@ -3836,7 +3872,7 @@ trained <code>models/</code> directory alongside <code>app.py</code>.</em>
                     st.info("No strong MHC-II binders found above threshold.")
 
             with tab_tcell:
-                st.markdown(f"**T cell immunogenicity** — XGBoost model, species: "
+                st.markdown(f"**T cell immunogenicity** (XGBoost model, species: "
                             f"{'🧑 Human' if ep_species == 'human' else '🐭 Mouse'}")
 
                 # Run T cell scan
@@ -3959,8 +3995,8 @@ def formulation_optimizer_module():
         (6 lipids × 4 ionizable ratios × 3 cholesterol × 3 PEG × 5 modifications)
         and ranks by your chosen objective.<br>
         <strong>Protein subunit vaccines:</strong> sweeps adjuvant × formulation vehicle combinations
-        — the biologically relevant design space for protein vaccines.
-        All predictions are deterministic — same antigen always returns the same ranking.
+       : the biologically relevant design space for protein vaccines.
+        All predictions are deterministic: same antigen always returns the same ranking.
       </p>
     </div>
     """, unsafe_allow_html=True)
@@ -4017,11 +4053,11 @@ def formulation_optimizer_module():
                     vaccine_type=last_vtype,
                     adjuvant_name=last_adjuvant
                 )
-            st.success(f"✅ Optimization complete — top {top_n} formulations ranked.")
+            st.success(f"✅ Optimization complete. Top {top_n} formulations ranked.")
 
             # ── Summary comparison bar chart ─────────────────────────────────
             is_protein = last_vtype == 'Protein subunit'
-            st.markdown("#### 📊 Top Formulations — Side-by-Side Comparison")
+            st.markdown("#### 📊 Top Formulations: Side-by-Side Comparison")
             labels     = [f"#{i+1} {r['_formulation']['label'][:30]}" for i, r in enumerate(top_results)]
             efficacies = [r['clinical_predictions']['efficacy']    for r in top_results]
             safeties   = [r['clinical_predictions']['safety']      for r in top_results]
@@ -4138,7 +4174,7 @@ def display_training_datasets():
         Epitrix is a <strong>hybrid platform</strong>. The MHC-I and T cell immunogenicity components
         use <strong>trained XGBoost models</strong> (MHC-I human AUC 0.986, trained on 219k IEDB peptides;
         T cell human AUC 0.928, trained on 92k IEDB assays). The innate→adaptive cascade
-        uses <strong>parameterised mechanistic equations</strong> — coefficients manually
+        uses <strong>parameterised mechanistic equations</strong> with coefficients manually
         extracted from the peer-reviewed studies listed below. These studies are the
         <em>calibration sources</em> for the mechanistic layer, not ML training data.
       </p>
@@ -4337,7 +4373,7 @@ def display_training_datasets():
             'category': '📐 Efficacy Equation Calibration',
             'color': '#0891b2', 'bg': '#f0f9ff', 'border': '#bae6fd',
             'datasets': [
-                {'name': 'BNT162b2 (Pfizer/BioNTech) Phase 3 Efficacy — Primary Calibration Anchor',
+                {'name': 'BNT162b2 (Pfizer/BioNTech) Phase 3 Efficacy. Primary Calibration Anchor',
                  'type': 'Phase 3 RCT',
                  'source': 'Polack et al., N Engl J Med 2020 (NCT04368728)',
                  'doi': '10.1056/NEJMoa2034577',
@@ -4347,7 +4383,7 @@ def display_training_datasets():
                                 'ALC-0315+m1Ψ: E_raw≈0.825 → 94%. Calibration: FLOOR=−0.122, SCALE=1.286.',
                  'n': 'n=43,448 (21,720 vaccine / 21,728 placebo)',
                  'param': 'CAL_FLOOR=-0.1217, CAL_SCALE=1.2863 (mRNA/DNA direct molecular formula)'},
-                {'name': 'mRNA-1273 (Moderna) Phase 3 Efficacy — Confirmatory mRNA Anchor',
+                {'name': 'mRNA-1273 (Moderna) Phase 3 Efficacy: Confirmatory mRNA Anchor',
                  'type': 'Phase 3 RCT',
                  'source': 'Baden et al., N Engl J Med 2021 (COVE trial)',
                  'doi': '10.1056/NEJMoa2035389',
@@ -4355,7 +4391,7 @@ def display_training_datasets():
                                 'n=30,415 participants. Confirms mRNA-LNP 93–95% calibration range for both ALC-0315 and SM-102.',
                  'n': 'n=30,415 (15,209 vaccine / 15,206 placebo)',
                  'param': 'Confirms mRNA calibration anchor at 93–95% for SM-102 formulation'},
-                {'name': 'Shingrix (AS01B-adjuvanted zoster) Phase 3 — Protein+Adjuvant Upper Anchor',
+                {'name': 'Shingrix (AS01B-adjuvanted zoster) Phase 3: Protein+Adjuvant Upper Anchor',
                  'type': 'Phase 3 RCT',
                  'source': 'Lal et al., N Engl J Med 2015 (ZOE-50)',
                  'doi': '10.1056/NEJMoa1501184',
@@ -4363,14 +4399,14 @@ def display_training_datasets():
                                 'Upper calibration anchor for protein subunit + AS01B. '
                                 'adj_efficacy_boost for AS01B = 0.28.',
                  'n': 'n=15,411', 'param': 'AS01B adj_boost=0.28; Protein FLOOR=0.128, SCALE=1.719'},
-                {'name': 'HEPLISAV-B (CpG 1018-adjuvanted HBV) — Protein+TLR9 Anchor',
+                {'name': 'HEPLISAV-B (CpG 1018-adjuvanted HBV): Protein+TLR9 Anchor',
                  'type': 'Phase 3 RCT',
                  'source': 'Heyward et al., Vaccine 2013 · FDA Approval 2017',
                  'doi': '10.1016/j.vaccine.2013.04.070',
                  'description': 'Recombinant HBsAg + CpG 1018 (TLR9): ~93% seroprotection vs ~81% for alum-adjuvanted control. '
                                 'adj_efficacy_boost for CpG 1018 = 0.20 for protein vaccines.',
                  'n': 'n=2,476', 'param': 'CpG 1018 adj_boost=0.20'},
-                {'name': 'Alum-adjuvanted HepB vaccine — Protein+Alum Lower Anchor',
+                {'name': 'Alum-adjuvanted HepB vaccine: Protein+Alum Lower Anchor',
                  'type': 'Clinical data',
                  'source': 'Andre 1989, Vaccine · WHO position paper 2017',
                  'doi': '10.1016/0264-410X(89)90236-4',
@@ -4378,7 +4414,7 @@ def display_training_datasets():
                                 'Used as lower calibration anchor for protein+alum. '
                                 'Alum adj_efficacy_boost = 0.19.',
                  'n': 'Pooled clinical data', 'param': 'Alum adj_boost=0.19; Protein alum baseline ~60%'},
-                {'name': 'Cervarix (AS04-adjuvanted HPV) — Protein+MPL/Alum Anchor',
+                {'name': 'Cervarix (AS04-adjuvanted HPV): Protein+MPL/Alum Anchor',
                  'type': 'Phase 3 RCT',
                  'source': 'Paavonen et al., Lancet 2009 (PATRICIA trial)',
                  'doi': '10.1016/S0140-6736(09)61248-4',
@@ -4407,7 +4443,7 @@ def display_training_datasets():
                  'type': 'KO mouse immunology',
                  'source': 'Seubert et al., PNAS 2011',
                  'doi': '10.1073/pnas.1107941108',
-                 'description': 'MF59 does not activate any TLR in vitro — confirmed on all TLR reporter cell lines. Requires MyD88 through TLR-independent pathway. Basis for TLR7_8=none.',
+                 'description': 'MF59 does not activate any TLR in vitro, confirmed on all TLR reporter cell lines. It requires MyD88 through a TLR-independent pathway. Basis for TLR7_8=none.',
                  'n': 'TLR/MyD88 KO comparison', 'param': "MF59: TLR7_8='none', non-TLR MyD88"},
                 {'name': 'MF59 RIPK3-dependent CD8 cross-presentation',
                  'type': 'Mechanistic mouse study',
@@ -4415,13 +4451,13 @@ def display_training_datasets():
                  'doi': '10.7554/eLife.52687',
                  'description': 'RIPK3 necroptosis drives cross-presentation to CD8 T cells by Batf3+ cDCs. Basis for cd8_boost=0.10 for MF59/AS03/AddaVax.',
                  'n': 'RIPK3-KO vs WT comparison', 'param': "MF59/AS03: cd8_boost=0.10"},
-                {'name': 'AS01 MPL+QS-21 synergy — early IFN-γ mechanism',
+                {'name': 'AS01 MPL+QS-21 synergy: early IFN-γ mechanism',
                  'type': 'Mechanistic NHP + clinical',
                  'source': 'Coccia et al., npj Vaccines 2017',
                  'doi': '10.1038/s41541-017-0027-3',
                  'description': 'MPL (TLR4) + QS-21 (NLRP3) synergistic early IFN-γ from NK cells via IL-12/IL-18. Blocking IFN-γ abolishes Th1 polarisation. Basis for AS01B highest Th1 deltas.',
                  'n': 'Mouse + macaque + human Phase II', 'param': "AS01B: Th1=+0.40, Tfh=+0.20"},
-                {'name': 'AS01 mode of action — TLR4 and caspase-1 requirement',
+                {'name': 'AS01 mode of action: TLR4 and caspase-1 requirement',
                  'type': 'Mechanistic review',
                  'source': 'Didierlaurent et al., Tandfonline 2024',
                  'doi': '10.1080/14760584.2024.2382725',
@@ -4435,25 +4471,25 @@ def display_training_datasets():
                  'n': 'Multiple clinical datasets', 'param': "CpG ODN: TLR7_8='very_high' (TLR9 mapped), Th1=+0.35"},
                 {'name': '3M-052 long-lived plasma cell induction',
                  'type': 'NHP immunology',
-                 'source': 'Nat Comms 2022 — Molecular atlas of innate immunity',
+                 'source': 'Nat Comms 2022: Molecular atlas of innate immunity',
                  'doi': '10.1038/s41467-022-28197-9',
                  'description': 'Lipidated TLR7/8 agonist induces robust antiviral/IFN gene program similar to yellow fever vaccine. Long-lived plasma cells up to ~1 year in NHPs. Highest Tfh delta of TLR7/8 class.',
                  'n': 'scRNA-seq + flow cytometry, NHP', 'param': "3M-052: Tfh=+0.15, cd8_boost=0.12"},
                 {'name': 'Matrix-M saponin nanoparticle mechanism',
                  'type': 'Mechanistic + clinical',
-                 'source': 'Science Advances 2024 — saponin-TLRa nanoadjuvants',
+                 'source': 'Science Advances 2024: saponin-TLRa nanoadjuvants',
                  'doi': '10.1126/sciadv.adn7187',
                  'description': 'Saponin nanoparticle (ISCOMATRIX-comparable). NLRP3-driven inflammasome, strong Th1 + CD8 cross-presentation. FDA-approved Oct 2022 Novavax COVID-19 vaccine. WHO-recommended R21/Matrix-M malaria vaccine 2023.',
                  'n': 'COVID-19 + malaria Phase III', 'param': "Matrix-M: Inflammasome='moderate', cd8_boost=0.18"},
                 {'name': 'Poly-ICLC (Hiltonol) TLR3/MDA-5 adjuvancy',
                  'type': 'Clinical review',
-                 'source': 'Caskey et al., PMC 2022 — Vaccines overview',
+                 'source': 'Caskey et al., PMC 2022: Vaccines overview',
                  'doi': '10.3390/vaccines10050819',
                  'description': 'Poly-ICLC stronger Th1 response than LPS or CpG in direct comparisons. TLR3 + cytosolic MDA-5. Strong type I IFN and CD8 cross-presentation via cDC1.',
                  'n': 'Multiple Phase I/II trials', 'param': "Poly-ICLC: TLR3='high', cd8_boost=0.18"},
                 {'name': 'Comprehensive adjuvant mechanisms review',
                  'type': 'Systematic review',
-                 'source': 'Frontiers Immunology 2025 — Recent advances in vaccine adjuvants',
+                 'source': 'Frontiers Immunology 2025: Recent advances in vaccine adjuvants',
                  'doi': '10.3389/fimmu.2025.1557415',
                  'description': 'Full mechanistic coverage of TLR1/2/3/4/5/7/8/9 agonists, emulsions, saponins, and combination systems. Primary reference for ordinal pathway strength assignments across the adjuvant catalogue.',
                  'n': '200+ citations reviewed', 'param': 'All adjuvant ordinal pathway scores'},
@@ -4545,14 +4581,14 @@ def display_training_datasets():
       Epitrix combines two components. The <strong>epitope prediction layer</strong> uses trained
       XGBoost models (MHC-I AUC 0.986, T cell AUC 0.928) trained on IEDB bulk data.
       The <strong>innate→adaptive cascade layer</strong> uses parameterised mechanistic equations
-      whose coefficients were manually extracted from the sources above — not trained end-to-end.
+      whose coefficients were manually extracted from the sources above: not trained end-to-end.
       Both layers contribute to the final prediction.
     </p>
     <p style="color:#6b7280;font-size:0.82rem;margin:0;line-height:1.7;">
       <strong style="color:#374151;">⚠️ Research use only:</strong>
       Outputs are hypothesis-generating approximations for research and educational purposes.
       The mechanistic cascade has not been prospectively validated. ML model test sets were
-      randomly split from the same IEDB download — not independently benchmarked.
+      randomly split from the same IEDB download and not independently benchmarked.
       Results should not inform clinical decisions without experimental validation.
     </p>
   </div>
