@@ -2831,9 +2831,19 @@ def molecular_input_module():
         )
 
         # Live sequence analysis preview
-        ag_features = None
-
-        # ── ML debug panel (shown only when ML not loading) ───────────────────
+        # Use session state to persist scan results across rerenders.
+        # Without this, ag_features resets to None when the Predict button
+        # triggers a rerender, and the cascade receives no antigen data.
+        _ag_cache_key = f"ag_scan_{hash(antigen_sequence or '')}_{species}"
+        if antigen_sequence and antigen_sequence.strip():
+            if _ag_cache_key not in st.session_state:
+                with st.spinner(f"🔬 Running XGBoost ML epitope scan [{species}]..."):
+                    _scanned = analyze_antigen_sequence(antigen_sequence, species=species)
+                st.session_state[_ag_cache_key] = _scanned
+            ag_features = st.session_state[_ag_cache_key]
+        else:
+            ag_features = None
+        # ── ML debug panel ────────────────────────────────────────────────────
         if '_ml_debug' in st.session_state:
             dbg = st.session_state['_ml_debug']
             if dbg.get('error') or dbg.get('exception'):
@@ -2845,33 +2855,28 @@ Paths checked:
 Error:          {dbg.get('error', '')}
 Exception:      {dbg.get('exception', '')}""")
 
-        if antigen_sequence and antigen_sequence.strip():
-            spinner_msg = f"🔬 Running {'XGBoost ML' if True else 'PSSM'} epitope scan [{species}]..."
-            with st.spinner(spinner_msg):
-                ag_features = analyze_antigen_sequence(antigen_sequence, species=species)
-            if ag_features.get('valid'):
-                ag = ag_features
-                # Method badge — three tiers
-                if ag.get('ml_used'):
-                    method_badge = (
-                        '<span style="background:#7c3aed;color:white;font-size:0.68rem;'
-                        'font-weight:700;padding:2px 7px;border-radius:999px;">🤖 XGBoost ML</span>'
-                    )
-                elif ag.get('iedb_used'):
-                    method_badge = (
-                        '<span style="background:#16a34a;color:white;font-size:0.68rem;'
-                        'font-weight:700;padding:2px 7px;border-radius:999px;">IEDB ✓</span>'
-                    )
-                else:
-                    method_badge = (
-                        '<span style="background:#6b7280;color:white;font-size:0.68rem;'
-                        'font-weight:700;padding:2px 7px;border-radius:999px;">Local PSSM</span>'
-                    )
-                species_badge = (
-                    '<span style="background:#1d4ed8;color:white;font-size:0.68rem;'
-                    f'font-weight:700;padding:2px 7px;border-radius:999px;">{"🧑 Human" if species=="human" else "🐭 Mouse"}</span>'
+        if ag_features and ag_features.get('valid'):
+            ag = ag_features
+            if ag.get('ml_used'):
+                method_badge = (
+                    '<span style="background:#7c3aed;color:white;font-size:0.68rem;'
+                    'font-weight:700;padding:2px 7px;border-radius:999px;">🤖 XGBoost ML</span>'
                 )
-                st.markdown(f"""
+            elif ag.get('iedb_used'):
+                method_badge = (
+                    '<span style="background:#16a34a;color:white;font-size:0.68rem;'
+                    'font-weight:700;padding:2px 7px;border-radius:999px;">IEDB ✓</span>'
+                )
+            else:
+                method_badge = (
+                    '<span style="background:#6b7280;color:white;font-size:0.68rem;'
+                    'font-weight:700;padding:2px 7px;border-radius:999px;">Local PSSM</span>'
+                )
+            species_badge = (
+                '<span style="background:#1d4ed8;color:white;font-size:0.68rem;'
+                f'font-weight:700;padding:2px 7px;border-radius:999px;">{"🧑 Human" if species=="human" else "🐭 Mouse"}</span>'
+            )
+            st.markdown(f"""
 <div class="antigen-card">
   <h3>🔬 Epitope Scan Results &nbsp;{method_badge}&nbsp;{species_badge}</h3>
   <span class="antigen-stat">Type: {ag['seq_type']}</span>
@@ -2887,9 +2892,9 @@ Exception:      {dbg.get('exception', '')}""")
     &nbsp;·&nbsp; <em>Method: {ag.get('mhci_method','—')}</em>
   </p>
 </div>""", unsafe_allow_html=True)
-            else:
-                st.warning(f"⚠️ Could not parse sequence: {ag_features.get('error', 'unrecognized format')}")
-                ag_features = None
+        elif ag_features and not ag_features.get('valid'):
+            st.warning(f"⚠️ Could not parse sequence: {ag_features.get('error', 'unrecognized format')}")
+            ag_features = None
         else:
             st.caption("No antigen sequence provided. The prediction will use default antigenicity values.")
 

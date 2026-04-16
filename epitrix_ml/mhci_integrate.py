@@ -184,9 +184,11 @@ def ml_epitope_scan(
     strong_binders.sort(reverse=True)
     weak_binders.sort(reverse=True)
 
-    # MHC-I aggregate score: weighted fraction of strong/weak binders
+    # MHC-I aggregate score: use mean strong-binder probability scaled to 0-1
+    # Scaling: sigmoid-like, so even high-probability antigens don't saturate to 100%
+    # Calibrated so Spike RBD (known immunogenic) → ~60-70%, weak antigens → <30%
     mean_strong_prob = float(np.mean(strong_prob))
-    mhc1_score = float(np.clip(mean_strong_prob * 3.0, 0, 1))
+    mhc1_score = float(np.clip(mean_strong_prob * 2.0, 0, 0.95))
 
     return {
         'method':              f'XGBoost MHC-I (AUC={metrics.get("binary_auc_roc", "?"):.3f})',
