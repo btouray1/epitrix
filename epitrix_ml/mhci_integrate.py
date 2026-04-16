@@ -188,9 +188,6 @@ def ml_epitope_scan(
     mean_strong_prob = float(np.mean(strong_prob))
     mhc1_score = float(np.clip(mean_strong_prob * 3.0, 0, 1))
 
-    # Also expose mean strong-binder probability across all peptides
-    mean_strong_prob = float(np.mean(strong_prob))
-
     return {
         'method':              f'XGBoost MHC-I (AUC={metrics.get("binary_auc_roc", "?"):.3f})',
         'mhc1_score':          mhc1_score,
