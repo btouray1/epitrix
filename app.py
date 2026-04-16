@@ -2148,6 +2148,96 @@ def _light_fig(fig, height=None):
     return fig
 
 
+# ── Publication colour palette ─────────────────────────────────────────────
+# 8 visually distinct, print-safe colours for bar charts
+PUB_COLORS = [
+    '#2563eb',  # blue
+    '#16a34a',  # green
+    '#dc2626',  # red
+    '#d97706',  # amber
+    '#7c3aed',  # purple
+    '#0891b2',  # cyan
+    '#db2777',  # pink
+    '#65a30d',  # lime
+]
+
+
+def _apply_pub_bar_colors(fig):
+    """Give each bar trace a distinct publication colour."""
+    for i, trace in enumerate(fig.data):
+        if trace.type in ('bar', 'scatter'):
+            color = PUB_COLORS[i % len(PUB_COLORS)]
+            if trace.type == 'bar':
+                # Per-bar colouring when single trace with multiple bars
+                if len(fig.data) == 1:
+                    trace.marker.color = PUB_COLORS[:len(trace.x)] if hasattr(trace, 'x') and trace.x is not None else color
+                else:
+                    trace.marker.color = color
+            else:
+                trace.line.color = color
+
+
+def pub_chart(fig, key: str, height: int = 380, wide: bool = False,
+              label: str = "Download JPEG", color_bars: bool = True):
+    """
+    Render a Plotly figure at publication size with per-bar colours
+    and a JPEG download button.
+
+    Parameters
+    ----------
+    fig         : plotly Figure
+    key         : unique string key for the download widget
+    height      : figure height in px (default 380 — good for single panel)
+    wide        : True = double-column width (1400px), False = single (900px)
+    label       : download button label
+    color_bars  : apply distinct colours to bar/scatter traces
+    """
+    pub_w = 1400 if wide else 900
+
+    if color_bars:
+        _apply_pub_bar_colors(fig)
+
+    fig.update_layout(
+        width=pub_w,
+        height=height,
+        font=dict(family='Arial', size=11, color='#111827'),
+        paper_bgcolor='white',
+        plot_bgcolor='white',
+        margin=dict(l=68, r=32, t=52, b=68),
+        title_font=dict(size=13, color='#111827', family='Arial'),
+        legend=dict(font=dict(size=10, color='#111827', family='Arial'),
+                    bgcolor='white', bordercolor='#d1d5db', borderwidth=1),
+    )
+    fig.update_xaxes(
+        tickfont=dict(size=10, color='#111827', family='Arial'),
+        title_font=dict(size=11, color='#111827', family='Arial'),
+        showgrid=True, gridcolor='#f3f4f6', linecolor='#d1d5db',
+        zeroline=False,
+    )
+    fig.update_yaxes(
+        tickfont=dict(size=10, color='#111827', family='Arial'),
+        title_font=dict(size=11, color='#111827', family='Arial'),
+        showgrid=True, gridcolor='#f3f4f6', linecolor='#d1d5db',
+        zeroline=True, zerolinecolor='#9ca3af',
+    )
+
+    st.plotly_chart(fig, use_container_width=False)
+
+    # JPEG download via kaleido
+    try:
+        import io as _io
+        _img = fig.to_image(format='jpg', width=pub_w, height=height, scale=2)
+        st.download_button(
+            label=f"⬇ {label}",
+            data=_io.BytesIO(_img),
+            file_name=f"{key}.jpg",
+            mime='image/jpeg',
+            key=f'dl_{key}',
+        )
+    except Exception:
+        st.caption("Install kaleido to enable JPEG download: `pip install kaleido`")
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # MODULE 1 — CORE INNOVATION
 # ─────────────────────────────────────────────────────────────────────────────
@@ -2948,7 +3038,7 @@ Exception:      {dbg.get('exception', '')}""")
                 paper_bgcolor='white', plot_bgcolor='white',
                 margin=dict(t=50, b=20, l=20, r=20)
             )
-            st.plotly_chart(fig, use_container_width=True)
+            pub_chart(fig, key="th_bias_pie", height=380)
         else:
             st.info("Configure parameters on the left and click **Predict Immune Cascade**.")
 
@@ -3066,7 +3156,7 @@ def innate_prediction_module():
                 margin=dict(t=50, b=50),
             )
             _light_fig(fig_r)
-            st.plotly_chart(fig_r, use_container_width=True)
+            pub_chart(fig_r, key="innate_bar", height=400)
 
         # ── Cytokine kinetics with CI shaded bands ────────────────────────────
         with col_l:
@@ -3109,7 +3199,7 @@ def innate_prediction_module():
                 margin=dict(t=50, b=50)
             )
             _light_fig(fig_c)
-            st.plotly_chart(fig_c, use_container_width=True)
+            pub_chart(fig_c, key="cytokine_kinetics", height=360)
 
         # ── Innate score summary table ────────────────────────────────────────
         st.markdown("#### 📋 Innate Pathway Score Summary")
@@ -3180,7 +3270,7 @@ def adaptive_outcomes_module():
                 legend=dict(font=dict(color='#111827'), bgcolor='white'),
                 margin=dict(t=50, b=20)
             )
-            st.plotly_chart(fig, use_container_width=True)
+            pub_chart(fig, key="th_bias_pie", height=380)
 
         with col2:
             st.markdown("#### 📊 Clinical Predictions + 95% CI")
@@ -3221,7 +3311,7 @@ def adaptive_outcomes_module():
                 paper_bgcolor='white', font=dict(family='Inter', color='#111827'),
                 margin=dict(t=40, b=20, l=20, r=20), height=220
             )
-            st.plotly_chart(fig_g, use_container_width=True)
+            pub_chart(fig_g, key="antibody_kinetics", height=360)
 
         # ── Row 2: DC Programming + Memory Formation ──────────────────────────
         col3, col4 = st.columns(2)
@@ -3273,7 +3363,7 @@ def adaptive_outcomes_module():
   <strong>IL-12 (pro-Th1):</strong> {il12_prod:.2f} &nbsp;|&nbsp;
   <strong>IL-10 (regulatory):</strong> {il10_prod:.2f}
 </div>""", unsafe_allow_html=True)
-            st.plotly_chart(fig_dc, use_container_width=True)
+            pub_chart(fig_dc, key="dc_maturation", height=360)
 
         with col4:
             st.markdown("#### 🧠 Memory Formation Quality")
@@ -3329,7 +3419,7 @@ def adaptive_outcomes_module():
   <strong>Memory T:</strong> {mem_t_score:.2f} &nbsp;|&nbsp;
   <strong>Est. protection:</strong> {prot_months:.1f} months
 </div>""", unsafe_allow_html=True)
-            st.plotly_chart(fig_mem, use_container_width=True)
+            pub_chart(fig_mem, key="memory_quality", height=360)
 
         # ── Antibody kinetics with CI band + population stratification ───────
         st.markdown("#### 🩸 Antibody Response Kinetics + 95% CI")
@@ -3404,7 +3494,7 @@ def adaptive_outcomes_module():
             margin=dict(t=50, b=50)
         )
         _light_fig(fig2)
-        st.plotly_chart(fig2, use_container_width=True)
+        pub_chart(fig2, key="temporal_dynamics", height=420, wide=True)
         st.caption(f"📖 Population modifier: {pm['note']}")
 
         # ── Clinical summary with CI + population-adjusted values ────────────
@@ -3616,7 +3706,7 @@ def adaptive_outcomes_module():
                         legend=dict(font=dict(color='#111827', size=10)),
                     )
                     _light_fig(fig_reg)
-                    st.plotly_chart(fig_reg, use_container_width=True)
+                    pub_chart(fig_reg, key=f"run_registry_{len(st.session_state.get('run_registry',[]))}", height=400, wide=True)
                     st.caption("All scores normalised to 0-100 scale for comparison. Safety and TLR7/8 multiplied by 100 from their native 0-1 scale.")
 
     else:
@@ -3722,7 +3812,7 @@ def temporal_dynamics_module():
         for ann in fig.layout.annotations:
             ann.font = dict(color='#111827', size=13, family='Inter')
 
-        st.plotly_chart(fig, use_container_width=True)
+        pub_chart(fig, key="th_bias_pie", height=380)
     else:
         st.info("Run molecular prediction (🔬 Molecular Input tab) to generate the timeline chart.")
 
@@ -3948,7 +4038,7 @@ trained <code>models/</code> directory alongside <code>app.py</code>.</em>
                                 margin=dict(t=20, b=60), height=280,
                             )
                             _light_fig(fig_tc)
-                            st.plotly_chart(fig_tc, use_container_width=True)
+                            pub_chart(fig_tc, key="tcell_immunogenicity", height=400, wide=True)
                             st.caption("Purple = high (>0.7) · Blue = moderate (>0.5) · Grey = low. "
                                        "Probabilities are base estimates without LNP modulation.")
                     else:
@@ -3969,7 +4059,7 @@ trained <code>models/</code> directory alongside <code>app.py</code>.</em>
                                  xaxis=dict(tickfont=dict(color='#111827')),
                                  margin=dict(t=30,b=40), height=280)
             _light_fig(fig_ep)
-            st.plotly_chart(fig_ep, use_container_width=True)
+            pub_chart(fig_ep, key="epitope_landscape", height=420, wide=True)
 
     elif run_ep:
         st.warning("Please paste a protein sequence first.")
@@ -4088,7 +4178,7 @@ def formulation_optimizer_module():
                 margin=dict(t=50, b=80)
             )
             _light_fig(fig_opt)
-            st.plotly_chart(fig_opt, use_container_width=True)
+            pub_chart(fig_opt, key="formulation_optimizer", height=420, wide=True)
 
             # ── Detailed cards per formulation ───────────────────────────────
             st.markdown("#### 🏆 Ranked Formulation Details")
