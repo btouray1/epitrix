@@ -4710,26 +4710,6 @@ def main():
     # ── Sidebar styling ────────────────────────────────────────────────────────
     st.sidebar.markdown("""
     <style>
-    /* Sidebar background already set to #1e293b in main CSS */
-    .sb-logo {
-        display: flex; align-items: center; gap: 0.6rem;
-        padding: 1rem 0.5rem 0.4rem;
-    }
-    .sb-logo-icon {
-        width: 40px; height: 40px; border-radius: 10px;
-        background: linear-gradient(135deg, #2563eb, #06b6d4);
-        display: flex; align-items: center; justify-content: center;
-        font-size: 1.2rem; flex-shrink: 0;
-        box-shadow: 0 4px 12px rgba(37,99,235,0.4);
-    }
-    .sb-logo-text { line-height: 1.2; }
-    .sb-logo-text strong {
-        display: block; color: #f1f5f9 !important;
-        font-size: 0.95rem; font-weight: 700;
-    }
-    .sb-logo-text span {
-        color: #94a3b8 !important; font-size: 0.72rem;
-    }
     .sb-divider {
         height: 1px; background: rgba(255,255,255,0.08);
         margin: 0.75rem 0;
@@ -4740,12 +4720,26 @@ def main():
         padding: 0 0.25rem; margin-bottom: 0.3rem; display: block;
     }
     </style>
-    <div class="sb-logo">
-      <div class="sb-logo-icon">🧠</div>
-      <div class="sb-logo-text">
-        <strong>Epitrix</strong>
-        <span>Hybrid ML + Simulation Platform</span>
-      </div>
+    <div style="padding:1rem 0.5rem 0.4rem;">
+      <svg viewBox="0 0 200 60" width="100%" xmlns="http://www.w3.org/2000/svg">
+        <polygon points="26,4 44,4 53,20 44,36 26,36 17,20" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1.5"/>
+        <polygon points="27,8 43,8 50,20 43,32 27,32 20,20" fill="#0f2342" stroke="#2563eb" stroke-width="0.8"/>
+        <path d="M29,10 C33,15 39,15 36,20 C33,25 27,25 31,30" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"/>
+        <path d="M41,10 C37,15 31,15 36,20 C41,25 47,25 43,30" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round"/>
+        <line x1="30" y1="13" x2="42" y2="13" stroke="#94a3b8" stroke-width="1.2" stroke-linecap="round"/>
+        <line x1="32" y1="19" x2="40" y2="19" stroke="#94a3b8" stroke-width="1.2" stroke-linecap="round"/>
+        <line x1="32" y1="23" x2="40" y2="23" stroke="#94a3b8" stroke-width="1.2" stroke-linecap="round"/>
+        <line x1="30" y1="29" x2="42" y2="29" stroke="#94a3b8" stroke-width="1.2" stroke-linecap="round"/>
+        <circle cx="30" cy="13" r="2.2" fill="#60a5fa"/>
+        <circle cx="42" cy="13" r="2.2" fill="#34d399"/>
+        <circle cx="36" cy="20" r="2.8" fill="#f59e0b"/>
+        <circle cx="30" cy="29" r="2.2" fill="#60a5fa"/>
+        <circle cx="42" cy="29" r="2.2" fill="#34d399"/>
+        <text x="62" y="24" font-family="Arial,sans-serif" font-size="22" font-weight="700" fill="#f1f5f9">Epi<tspan fill="#60a5fa">trix</tspan></text>
+        <text x="62" y="38" font-family="Arial,sans-serif" font-size="8.5" fill="#64748b" letter-spacing="0.8">VACCINE PLATFORM</text>
+        <line x1="62" y1="42" x2="195" y2="42" stroke="#1e3a5f" stroke-width="1"/>
+        <line x1="62" y1="42" x2="92" y2="42" stroke="#34d399" stroke-width="2" stroke-linecap="round"/>
+      </svg>
     </div>
     <div class="sb-divider"></div>
     <span class="sb-section-label">Navigation</span>
