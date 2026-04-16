@@ -2163,18 +2163,31 @@ PUB_COLORS = [
 
 
 def _apply_pub_bar_colors(fig):
-    """Give each bar trace a distinct publication colour."""
-    for i, trace in enumerate(fig.data):
-        if trace.type in ('bar', 'scatter'):
-            color = PUB_COLORS[i % len(PUB_COLORS)]
-            if trace.type == 'bar':
-                # Per-bar colouring when single trace with multiple bars
-                if len(fig.data) == 1:
-                    trace.marker.color = PUB_COLORS[:len(trace.x)] if hasattr(trace, 'x') and trace.x is not None else color
-                else:
-                    trace.marker.color = color
-            else:
-                trace.line.color = color
+    """
+    Give each bar trace a distinct publication colour — only when the bars
+    are all the same color (i.e. the default blue, meaning no explicit color
+    was set). Skips scatter/line traces entirely to preserve CI bands and
+    reference lines.
+    """
+    bar_traces = [t for t in fig.data if t.type == 'bar']
+    if not bar_traces:
+        return
+
+    if len(bar_traces) == 1:
+        # Single trace — color individual bars differently
+        t = bar_traces[0]
+        n_bars = len(t.x) if t.x is not None else 0
+        if n_bars > 0:
+            # Only override if marker color is a single uniform value (not already a list)
+            existing = t.marker.color
+            if existing is None or isinstance(existing, str):
+                t.marker.color = [PUB_COLORS[i % len(PUB_COLORS)] for i in range(n_bars)]
+    else:
+        # Multiple traces — give each trace its own color
+        for i, t in enumerate(bar_traces):
+            existing = t.marker.color
+            if existing is None or isinstance(existing, str):
+                t.marker.color = PUB_COLORS[i % len(PUB_COLORS)]
 
 
 def pub_chart(fig, key: str, height: int = 380, wide: bool = False,
@@ -3474,15 +3487,16 @@ def adaptive_outcomes_module():
             name=f'Predicted titer ({population})',
             line=dict(color='#2563eb', width=3)
         ))
-        if population != 'General adult (18–60)':
-            # Also show reference adult line faintly
-            mag_ref = ab.get('magnitude', 0.8)
-            titers_ref = mag_ref * np.where(t_d <= peak, (t_d/peak)**2, np.exp(-0.05*(1-dur)*(t_d-peak)))
-            fig2.add_trace(go.Scatter(
-                x=t_d, y=titers_ref, mode='lines',
-                name='Reference adult',
-                line=dict(color='#94a3b8', width=1.5, dash='dot')
-            ))
+        # Always show reference adult line for comparison
+        mag_ref    = ab.get('magnitude', 0.8)
+        titers_ref = mag_ref * np.where(t_d <= peak, (t_d/peak)**2,
+                                        np.exp(-0.05*(1-dur)*(t_d-peak)))
+        ref_label  = 'Reference adult (General 18–60)' if population != 'General adult (18–60)' else 'General adult (18–60)'
+        fig2.add_trace(go.Scatter(
+            x=t_d, y=titers_ref, mode='lines',
+            name=ref_label,
+            line=dict(color='#94a3b8', width=1.5, dash='dot')
+        ))
         fig2.update_layout(
             title=dict(text=f"Antibody Response Kinetics: {population}",
                        font=dict(color='#111827', size=15)),
