@@ -185,9 +185,8 @@ def ml_epitope_scan(
     weak_binders.sort(reverse=True)
 
     # MHC-I aggregate score: weighted fraction of strong/weak binders
-    mhc1_score = float(np.clip(
-        (len(strong_binders) * 3 + len(weak_binders)) / max(len(peptides), 1) * 0.4, 0, 1
-    ))
+    mean_strong_prob = float(np.mean(strong_prob))
+    mhc1_score = float(np.clip(mean_strong_prob * 3.0, 0, 1))
 
     # Also expose mean strong-binder probability across all peptides
     mean_strong_prob = float(np.mean(strong_prob))
