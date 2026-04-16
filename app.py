@@ -1511,7 +1511,17 @@ def analyze_antigen_sequence(sequence: str, use_iedb: bool = True,
         b_cell_score       = local['b_cell_score']
         bcell_epitopes_est = local['bcell_epitopes_est']
         hydrophobicity     = local['hydrophobicity']
-        antigenicity       = float(np.clip(mhc1_score*0.35 + mhc2_score*0.35 + b_cell_score*0.3, 0, 1))
+        # When XGBoost ML is available, weight mhc1_score more heavily since
+        # it is calibrated from 219k IEDB peptides and is far more reliable
+        # than the PSSM-based MHC-II and B-cell scores.
+        # Without ML: equal weights (0.35/0.35/0.30)
+        # With ML:    mhc1 dominant (0.60/0.25/0.15) — reflects higher confidence
+        if ml_result:
+            antigenicity = float(np.clip(
+                mhc1_score*0.60 + mhc2_score*0.25 + b_cell_score*0.15, 0, 1))
+        else:
+            antigenicity = float(np.clip(
+                mhc1_score*0.35 + mhc2_score*0.35 + b_cell_score*0.30, 0, 1))
         iedb_used          = bool(iedb_mhci or iedb_mhcii)
 
     else:  # RNA / DNA
